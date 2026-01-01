@@ -1,0 +1,22 @@
+# 常用IDE文件 (不需要上传)
+.idea/
+.vscode/
+*.swp
+*.iml
+
+# Java/Maven 构建文件 (如果你是后端)
+target/
+*.class
+*.jar
+*.war
+
+# 前端依赖 (如果你是前端Vue/React等)
+node_modules/
+dist/
+npm-debug.log*
+yarn-debug.log*
+package-lock.json # 这个看情况，有时需要上传，但通常为了避免冲突也可以忽略，或者保留它锁定版本
+
+# 系统文件
+.DS_Store
+Thumbs.db
