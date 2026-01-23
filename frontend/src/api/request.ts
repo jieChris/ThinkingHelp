@@ -41,6 +41,9 @@ service.interceptors.response.use(
                     msg = '未授权，请重新登录'
                     // specific logic to redirect to login could go here
                     localStorage.removeItem('token')
+                    if (window.location.pathname !== '/login') {
+                        window.location.href = '/login'
+                    }
                     break;
                 case 403:
                     msg = '拒绝访问'

@@ -74,51 +74,50 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { ElMessage } from 'element-plus'
+import request from '../../api/request'
 
 const loading = ref(false)
 const generatedPlan = ref<any>(null) // Use 'any' for now or define interface
 
 const generatePlan = async () => {
     loading.value = true
-    setTimeout(() => {
-        // Mock Data
-        generatedPlan.value = {
-            title: '高血压控制周食谱',
-            advice: '本周食谱重点在于控制钠摄入(<5g/day)，增加钾的摄入。建议多喝水。',
-            weeklyPlan: [
-                { 
-                    day: '周一', 
-                    breakfast: { name: '燕麦粥 + 煮鸡蛋', calories: '350kcal' },
-                    lunch: { name: '清蒸鱼 + 糙米饭 + 炒青菜', calories: '600kcal' },
-                    dinner: { name: '蔬菜沙拉 (油醋汁)', calories: '200kcal' }
-                },
-                { 
-                    day: '周二 Tue', 
-                    breakfast: { name: '全麦面包 + 脱脂奶', calories: '350kcal' },
-                    lunch: { name: '鸡胸肉 + 红薯 + 西兰花', calories: '550kcal' },
-                    dinner: { name: '番茄鸡蛋汤 + 玉米段', calories: '250kcal' }
-                },
-                 { 
-                    day: '周三 Wed', 
-                    breakfast: { name: '小米粥 + 腐乳(少许)', calories: '300kcal' },
-                    lunch: { name: '酱牛肉 + 荞麦面', calories: '650kcal' },
-                    dinner: { name: '冬瓜丸子汤 (鸡肉丸)', calories: '250kcal' }
-                }
-            ],
-            shoppingList: {
-                '燕麦': '500g',
-                '鸡胸肉': '1kg',
-                '西兰花': '2颗',
-                '全麦面包': '1袋',
-                '脱脂奶': '1L'
-            }
+    try {
+        const res: any = await request.get('/meal-plan/weekly')
+        if (res.code === 200) {
+            generatedPlan.value = res.data
+        } else {
+            ElMessage.error(res.msg || '生成失败')
         }
+    } catch (e) {
+        console.error(e)
+    } finally {
         loading.value = false
-    }, 1500)
+    }
 }
 
 const downloadPdf = () => {
-    window.open('http://localhost:8080/api/export/pdf', '_blank')
+    const token = localStorage.getItem('token')
+    fetch('/api/export/pdf', {
+        method: 'GET',
+        headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+    }).then(async (response) => {
+        if (!response.ok) throw new Error(response.statusText)
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const element = document.createElement('a')
+        element.href = url
+        element.download = 'meal_plan.pdf'
+        document.body.appendChild(element)
+        element.click()
+        document.body.removeChild(element)
+        window.URL.revokeObjectURL(url)
+    }).catch((e) => {
+        console.error(e)
+        ElMessage.error('导出失败，请稍后重试')
+    })
 }
 </script>
 

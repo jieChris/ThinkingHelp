@@ -7,7 +7,7 @@
         </div>
       </template>
 
-      <el-tabs tab-position="left" style="height: 400px" class="settings-tabs">
+      <el-tabs :tab-position="tabPosition" class="settings-tabs">
         <!-- Tab 1: Account Security -->
         <el-tab-pane label="账号安全">
             <div class="tab-content">
@@ -64,11 +64,11 @@
              <div class="tab-content">
                 <h3>通知设置</h3>
                 <el-form label-width="120px">
-                    <el-form-item label="接收系统通知">
+                     <el-form-item label="接收系统通知">
                         <el-switch v-model="settings.notificationEnabled" @change="saveSettings" />
                     </el-form-item>
                      <el-form-item label="用药提醒">
-                        <el-switch v-model="medicationReminder" />
+                        <el-switch v-model="medicationReminder" @change="syncMedicationReminder" />
                     </el-form-item>
                 </el-form>
              </div>
@@ -97,43 +97,67 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useUserStore } from '../../stores/user'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import request from '../../api/request'
 
 const userStore = useUserStore()
 const router = useRouter()
 const settings = computed(() => userStore.settings)
-const medicationReminder = ref(true)
+const medicationReminder = ref(localStorage.getItem('medicationReminder') === 'true')
+const tabPosition = ref<'left' | 'top'>('left')
 
 const previewSize = computed(() => {
     const sizes = [14, 17.5, 21] // 14px * 1.0, 1.25, 1.5
     return sizes[settings.value.fontSize]
 })
 
-const updateFont = (size: number) => {
+const updateFont = async (size: number) => {
     userStore.updateSettings({ fontSize: size })
+    await saveSettingsToServer()
     ElMessage.success('字号已调整')
 }
 
-const saveSettings = () => {
+const saveSettings = async () => {
     userStore.updateSettings({ ...settings.value })
+    await saveSettingsToServer()
     ElMessage.success('设置已自动保存')
 }
 
-const exportData = () => {
+const saveSettingsToServer = async () => {
+    try {
+        await request.put('/user/settings', { ...settings.value })
+    } catch (e) {
+        console.error(e)
+    }
+}
+
+const exportData = async () => {
     ElMessage.success('正在准备数据导出，请稍候...')
-    // Mock export
-    setTimeout(() => {
-        const element = document.createElement('a');
-        element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent('User Data Export Mock'));
-        element.setAttribute('download', 'user_data.txt');
-        element.style.display = 'none';
-        document.body.appendChild(element);
-        element.click();
-        document.body.removeChild(element);
-    }, 1000)
+    try {
+        const token = localStorage.getItem('token')
+        const response = await fetch('/api/user/export-data', {
+            method: 'POST',
+            headers: {
+                ...(token ? { Authorization: `Bearer ${token}` } : {})
+            }
+        })
+        if (!response.ok) throw new Error(response.statusText)
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const element = document.createElement('a')
+        element.href = url
+        element.download = 'user_data.txt'
+        document.body.appendChild(element)
+        element.click()
+        document.body.removeChild(element)
+        window.URL.revokeObjectURL(url)
+    } catch (e) {
+        console.error(e)
+        ElMessage.error('导出失败，请稍后重试')
+    }
 }
 
 const handleLogout = () => {
@@ -153,11 +177,44 @@ const handleLogout = () => {
         // cancel
     })
 }
+
+const loadSettings = async () => {
+    try {
+        const res: any = await request.get('/user/settings')
+        if (res.code === 200 && res.data) {
+            userStore.updateSettings(res.data)
+        }
+    } catch (e) {
+        console.error(e)
+    }
+}
+
+const syncMedicationReminder = () => {
+    localStorage.setItem('medicationReminder', String(medicationReminder.value))
+}
+
+const updateTabPosition = () => {
+    tabPosition.value = window.innerWidth <= 900 ? 'top' : 'left'
+}
+
+onMounted(() => {
+    loadSettings()
+    updateTabPosition()
+    window.addEventListener('resize', updateTabPosition)
+})
+
+onUnmounted(() => {
+    window.removeEventListener('resize', updateTabPosition)
+})
 </script>
 
 <style scoped lang="scss">
 .settings-page {
     /* Full width handled by MainLayout now */
+}
+
+.settings-tabs {
+    min-height: 400px;
 }
 
 .tab-content {

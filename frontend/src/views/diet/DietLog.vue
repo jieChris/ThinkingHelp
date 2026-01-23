@@ -70,6 +70,7 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
+import request from '../../api/request'
 
 const form = reactive({
     mealType: 'LUNCH',
@@ -92,9 +93,22 @@ const submitLog = async () => {
         return
     }
     
-    console.log('正在提交:', form)
-    lastLog.value = `已记录 ${form.mealType}: 食物ID ${form.foodId}, 分量 ${form.count} x ${form.unit}`
-    ElMessage.success('记录成功，今日热量已更新')
+    try {
+        const res: any = await request.post('/diet/logs', {
+            mealType: form.mealType,
+            foodId: form.foodId,
+            unit: form.unit,
+            count: form.count
+        })
+        if (res.code === 200) {
+            lastLog.value = `已记录 ${form.mealType}: 食物ID ${form.foodId}, 分量 ${form.count} x ${form.unit}`
+            ElMessage.success('记录成功，今日热量已更新')
+        } else {
+            ElMessage.error(res.msg || '记录失败')
+        }
+    } catch (e) {
+        console.error(e)
+    }
 }
 </script>
 

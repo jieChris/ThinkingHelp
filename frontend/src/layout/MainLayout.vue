@@ -213,12 +213,16 @@ const fullAvatarUrl = (url: string) => {
         flex: 1;
         overflow-y: auto; /* Scrollbar belongs here */
         padding: 24px;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
         
         .content-wrapper {
             /* max-width removed for full-width layout */
             margin: 0;
             width: 100%;
-            min-height: 100%; /* Ensure full height for children like Chat */
+            flex: 1;
+            min-height: 0;
             display: flex;
             flex-direction: column;
         }

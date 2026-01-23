@@ -286,8 +286,47 @@ const handleOcrFile = () => {
     }, 200)
 }
 
-const submitProfile = () => {
-    ElMessage.success('档案保存成功！即将为您更新个性化食谱...')
+const fetchProfile = async () => {
+    try {
+        const res: any = await request.get('/health/profile')
+        if (res.code === 200 && res.data) {
+            const data = res.data
+            form.name = data.name || ''
+            form.gender = data.gender || 'MALE'
+            form.age = data.age || 0
+            form.height = data.height || 0
+            form.weight = data.weight || 0
+            form.bmi = data.bmi || ''
+            form.diseases = data.diseases || []
+            form.allergies = data.allergies || []
+            form.otherRestrictions = data.otherRestrictions || ''
+        }
+    } catch (e) {
+        console.error(e)
+    }
+}
+
+const submitProfile = async () => {
+    try {
+        const res: any = await request.post('/health/profile', {
+            name: form.name,
+            gender: form.gender,
+            age: form.age,
+            height: form.height,
+            weight: form.weight,
+            bmi: form.bmi,
+            diseases: form.diseases,
+            allergies: form.allergies,
+            otherRestrictions: form.otherRestrictions
+        })
+        if (res.code === 200) {
+            ElMessage.success('档案保存成功！')
+        } else {
+            ElMessage.error(res.msg || '保存失败')
+        }
+    } catch (e) {
+        console.error(e)
+    }
 }
 
 // --- Metrics Logic ---
@@ -404,6 +443,7 @@ const deleteMetric = async (id: number) => {
 }
 
 onMounted(() => {
+    fetchProfile()
     fetchMetrics()
 })
 </script>

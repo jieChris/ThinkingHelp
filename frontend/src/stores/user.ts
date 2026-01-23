@@ -51,10 +51,14 @@ export const useUserStore = defineStore('user', () => {
     }
 
     const logout = () => {
+        const userId = user.value?.id
         token.value = null
         user.value = null
         localStorage.removeItem('token')
         localStorage.removeItem('user')
+        if (userId) {
+            localStorage.removeItem(`chat_sessions_${userId}`)
+        }
         // Reset styles
         document.documentElement.style.fontSize = ''
     }

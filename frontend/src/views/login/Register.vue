@@ -187,8 +187,8 @@ const goLogin = () => {
 }
 
 .login-box {
-    width: 1000px;
-    height: 600px;
+    width: min(1000px, 92vw);
+    height: min(600px, 92vh);
     background: #fff;
     border-radius: 20px;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
@@ -248,12 +248,12 @@ const goLogin = () => {
         }
     }
     
-    .form-side {
-        flex: 1;
-        padding: 60px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
+        .form-side {
+            flex: 1;
+            padding: 60px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         
         .form-header {
             margin-bottom: 40px;
@@ -280,6 +280,25 @@ const goLogin = () => {
             font-size: 14px;
             color: #6B7280;
         }
+    }
+}
+
+@media (max-width: 900px) {
+    .login-box {
+        flex-direction: column;
+        height: auto;
+    }
+
+    .login-box .illustration-side {
+        padding: 30px 20px;
+    }
+
+    .login-box .illustration-side .content img {
+        max-width: 60%;
+    }
+
+    .login-box .form-side {
+        padding: 40px 24px 50px;
     }
 }
 </style>

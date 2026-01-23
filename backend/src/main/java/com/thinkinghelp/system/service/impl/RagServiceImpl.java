@@ -40,9 +40,10 @@ public class RagServiceImpl implements RagService {
 
         // 如果需要，将免责声明追加到流的末尾
         if (context.isEmpty()) {
-            return streamResponse.concatWith(Flux.just("\n\n(注意：本地知识库未收录相关内容，回答仅供参考)"));
+            streamResponse = streamResponse.concatWith(Flux.just("\n\n(注意：本地知识库未收录相关内容，回答仅供参考)"));
         }
-        return streamResponse;
+        // 标记流结束，便于前端主动终止读取
+        return streamResponse.concatWith(Flux.just("[DONE]"));
     }
 
     private String retrieveContext(String question) {

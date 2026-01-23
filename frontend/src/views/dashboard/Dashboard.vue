@@ -8,41 +8,41 @@
 
     <!-- Health Cards -->
     <el-row :gutter="20" class="cards-row">
-      <el-col :span="6">
+      <el-col :xs="24" :sm="12" :lg="6">
         <el-card shadow="hover" class="health-card green">
           <div class="card-title">BMI 指数</div>
-          <div class="card-value">23.8</div>
-          <div class="card-status normal">正常</div>
+          <div class="card-value">{{ bmiValue }}</div>
+          <div class="card-status" :class="bmiStatusClass">{{ bmiStatusText }}</div>
           <el-icon class="card-icon"><ScaleToOriginal /></el-icon>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :xs="24" :sm="12" :lg="6">
         <el-card shadow="hover" class="health-card blue">
           <div class="card-title">最近血压 (mmHg)</div>
-          <div class="card-value">128/82</div>
-          <div class="card-status normal">正常</div>
+          <div class="card-value">{{ bloodPressureValue }}</div>
+          <div class="card-status" :class="bpStatusClass">{{ bpStatusText }}</div>
           <el-icon class="card-icon"><Timer /></el-icon>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :xs="24" :sm="12" :lg="6">
         <el-card shadow="hover" class="health-card orange">
-          <div class="card-title">今日热量 (kcal)</div>
-          <div class="card-value">850 / 1800</div>
-          <el-progress :percentage="47" :color="'#F59E0B'" :show-text="false" class="card-progress"/>
+          <div class="card-title">今日餐次记录</div>
+          <div class="card-value">{{ mealCount }} / {{ mealGoal }}</div>
+          <el-progress :percentage="mealProgress" :color="'#F59E0B'" :show-text="false" class="card-progress"/>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :xs="24" :sm="12" :lg="6">
         <el-card shadow="hover" class="health-card cyan">
-          <div class="card-title">今日饮水 (ml)</div>
-          <div class="card-value">1200 / 2000</div>
-          <el-progress :percentage="60" :color="'#06b6d4'" :show-text="false" class="card-progress"/>
+          <div class="card-title">今日健康记录</div>
+          <div class="card-value">{{ recordCount }} 条</div>
+          <el-progress :percentage="recordProgress" :color="'#06b6d4'" :show-text="false" class="card-progress"/>
         </el-card>
       </el-col>
     </el-row>
 
     <!-- Charts Area -->
     <el-row :gutter="20" class="charts-row">
-      <el-col :span="16">
+      <el-col :xs="24" :lg="16">
         <el-card shadow="hover" class="chart-card">
           <template #header>
             <div class="card-header">
@@ -53,7 +53,7 @@
           <div ref="lineChartRef" class="chart-container"></div>
         </el-card>
       </el-col>
-      <el-col :span="8">
+      <el-col :xs="24" :lg="8">
         <el-card shadow="hover" class="chart-card">
           <template #header>
             <div class="card-header">
@@ -81,13 +81,32 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import * as echarts from 'echarts'
 import { useRouter } from 'vue-router'
+import { useUserStore } from '../../stores/user'
+import request from '../../api/request'
+import dayjs from 'dayjs'
 
 const router = useRouter()
+const userStore = useUserStore()
 const lineChartRef = ref<HTMLElement | null>(null)
 const pieChartRef = ref<HTMLElement | null>(null)
+
+const bmiValue = ref('--')
+const bmiStatusText = ref('暂无数据')
+const bmiStatusClass = ref('')
+
+const bloodPressureValue = ref('--')
+const bpStatusText = ref('暂无数据')
+const bpStatusClass = ref('')
+
+const mealCount = ref(0)
+const mealGoal = 3
+const recordCount = ref(0)
+
+const mealProgress = computed(() => Math.min(100, Math.round((mealCount.value / mealGoal) * 100)))
+const recordProgress = computed(() => Math.min(100, Math.round((recordCount.value / 3) * 100)))
 
 const goDiet = () => router.push('/diet')
 const goChat = () => router.push('/chat')
@@ -96,6 +115,7 @@ const goPlan = () => router.push('/plan')
 onMounted(() => {
   initLineChart()
   initPieChart()
+  fetchSummary()
 })
 
 const initLineChart = () => {
@@ -166,6 +186,64 @@ const initPieChart = () => {
     myChart.setOption(option)
     window.addEventListener('resize', () => myChart.resize())
 }
+
+const fetchSummary = async () => {
+    if (!userStore.user?.id) return
+
+    try {
+        const [latestRes, recordsRes, dietRes] = await Promise.all([
+            request.get('/health/records/latest', { params: { userId: userStore.user.id } }),
+            request.get('/health/records', { params: { userId: userStore.user.id } }),
+            request.get('/diet/logs')
+        ])
+
+        if (latestRes.code === 200 && latestRes.data) {
+            const latest = latestRes.data
+            if (latest.height && latest.weight) {
+                const heightM = latest.height / 100
+                const bmi = latest.weight / (heightM * heightM)
+                bmiValue.value = bmi.toFixed(1)
+                if (bmi >= 24) {
+                    bmiStatusText.value = '偏高'
+                    bmiStatusClass.value = 'warning'
+                } else if (bmi < 18.5) {
+                    bmiStatusText.value = '偏低'
+                    bmiStatusClass.value = 'warning'
+                } else {
+                    bmiStatusText.value = '正常'
+                    bmiStatusClass.value = 'normal'
+                }
+            }
+
+            if (latest.systolic && latest.diastolic) {
+                bloodPressureValue.value = `${latest.systolic}/${latest.diastolic}`
+                if (latest.systolic >= 140 || latest.diastolic >= 90) {
+                    bpStatusText.value = '偏高'
+                    bpStatusClass.value = 'warning'
+                } else {
+                    bpStatusText.value = '正常'
+                    bpStatusClass.value = 'normal'
+                }
+            }
+        }
+
+        if (recordsRes.code === 200 && Array.isArray(recordsRes.data)) {
+            const today = dayjs().format('YYYY-MM-DD')
+            recordCount.value = recordsRes.data.filter((item: any) => {
+                return item.recordedAt && dayjs(item.recordedAt).format('YYYY-MM-DD') === today
+            }).length
+        }
+
+        if (dietRes.code === 200 && Array.isArray(dietRes.data)) {
+            const today = dayjs().format('YYYY-MM-DD')
+            mealCount.value = dietRes.data.filter((item: any) => {
+                return item.recordedAt && dayjs(item.recordedAt).format('YYYY-MM-DD') === today
+            }).length
+        }
+    } catch (e) {
+        console.error(e)
+    }
+}
 </script>
 
 <style scoped lang="scss">
@@ -207,6 +285,10 @@ const initPieChart = () => {
         &.normal {
             background-color: #ecfdf5;
             color: #059669;
+        }
+        &.warning {
+            background-color: #fff7ed;
+            color: #f97316;
         }
     }
     .card-icon {
