@@ -24,11 +24,11 @@ service.interceptors.request.use(
 service.interceptors.response.use(
     (response) => {
         const res = response.data
-        // Assuming backend returns { code: 200, data: ..., msg: ... } structure
-        // But our backend returns Result<T> which has code, msg, data
+        // Backend returns Result<T> with code/message/data
         if (res.code && res.code !== 200) {
-            ElMessage.error(res.msg || 'Error')
-            return Promise.reject(new Error(res.msg || 'Error'))
+            const errorMessage = res.message || res.msg || 'Error'
+            ElMessage.error(errorMessage)
+            return Promise.reject(new Error(errorMessage))
         }
         return res
     },

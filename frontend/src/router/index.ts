@@ -77,6 +77,21 @@ const router = createRouter({
     routes
 })
 
+router.onError((error) => {
+    const message = (error as any)?.message || ''
+    const chunkFailed = /Loading chunk|ChunkLoadError|Failed to fetch dynamically imported module|Importing a module script failed/i.test(message)
+    if (chunkFailed) {
+        const reloadKey = 'chunk_reload_attempt'
+        if (!sessionStorage.getItem(reloadKey)) {
+            sessionStorage.setItem(reloadKey, '1')
+            window.location.reload()
+            return
+        }
+        sessionStorage.removeItem(reloadKey)
+    }
+    console.error('Router error:', error)
+})
+
 router.beforeEach((to, from, next) => {
     // 1. Update Title
     document.title = (to.meta.title as string) || 'ThinkingHelp'

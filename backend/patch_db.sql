@@ -68,6 +68,87 @@ CREATE TABLE IF NOT EXISTS meal_plans (
     created_at DATETIME
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Patch 11: Extend health_profiles with exam fields
+SET @exist := (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'thinking_help' AND table_name = 'health_profiles' AND column_name = 'report_date');
+SET @sql := IF(@exist = 0, 'ALTER TABLE health_profiles ADD COLUMN report_date VARCHAR(20)', 'SELECT \"Column report_date already exists\"');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+
+SET @exist := (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'thinking_help' AND table_name = 'health_profiles' AND column_name = 'bp_systolic');
+SET @sql := IF(@exist = 0, 'ALTER TABLE health_profiles ADD COLUMN bp_systolic DOUBLE', 'SELECT \"Column bp_systolic already exists\"');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+
+SET @exist := (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'thinking_help' AND table_name = 'health_profiles' AND column_name = 'bp_diastolic');
+SET @sql := IF(@exist = 0, 'ALTER TABLE health_profiles ADD COLUMN bp_diastolic DOUBLE', 'SELECT \"Column bp_diastolic already exists\"');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+
+SET @exist := (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'thinking_help' AND table_name = 'health_profiles' AND column_name = 'fasting_glucose');
+SET @sql := IF(@exist = 0, 'ALTER TABLE health_profiles ADD COLUMN fasting_glucose DOUBLE', 'SELECT \"Column fasting_glucose already exists\"');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+
+SET @exist := (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'thinking_help' AND table_name = 'health_profiles' AND column_name = 'hba1c');
+SET @sql := IF(@exist = 0, 'ALTER TABLE health_profiles ADD COLUMN hba1c DOUBLE', 'SELECT \"Column hba1c already exists\"');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+
+SET @exist := (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'thinking_help' AND table_name = 'health_profiles' AND column_name = 'total_cholesterol');
+SET @sql := IF(@exist = 0, 'ALTER TABLE health_profiles ADD COLUMN total_cholesterol DOUBLE', 'SELECT \"Column total_cholesterol already exists\"');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+
+SET @exist := (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'thinking_help' AND table_name = 'health_profiles' AND column_name = 'triglycerides');
+SET @sql := IF(@exist = 0, 'ALTER TABLE health_profiles ADD COLUMN triglycerides DOUBLE', 'SELECT \"Column triglycerides already exists\"');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+
+SET @exist := (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'thinking_help' AND table_name = 'health_profiles' AND column_name = 'hdl');
+SET @sql := IF(@exist = 0, 'ALTER TABLE health_profiles ADD COLUMN hdl DOUBLE', 'SELECT \"Column hdl already exists\"');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+
+SET @exist := (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'thinking_help' AND table_name = 'health_profiles' AND column_name = 'ldl');
+SET @sql := IF(@exist = 0, 'ALTER TABLE health_profiles ADD COLUMN ldl DOUBLE', 'SELECT \"Column ldl already exists\"');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+
+SET @exist := (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'thinking_help' AND table_name = 'health_profiles' AND column_name = 'uric_acid');
+SET @sql := IF(@exist = 0, 'ALTER TABLE health_profiles ADD COLUMN uric_acid DOUBLE', 'SELECT \"Column uric_acid already exists\"');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+
+SET @exist := (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'thinking_help' AND table_name = 'health_profiles' AND column_name = 'alt');
+SET @sql := IF(@exist = 0, 'ALTER TABLE health_profiles ADD COLUMN alt DOUBLE', 'SELECT \"Column alt already exists\"');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+
+SET @exist := (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'thinking_help' AND table_name = 'health_profiles' AND column_name = 'ast');
+SET @sql := IF(@exist = 0, 'ALTER TABLE health_profiles ADD COLUMN ast DOUBLE', 'SELECT \"Column ast already exists\"');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+
+SET @exist := (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'thinking_help' AND table_name = 'health_profiles' AND column_name = 'creatinine');
+SET @sql := IF(@exist = 0, 'ALTER TABLE health_profiles ADD COLUMN creatinine DOUBLE', 'SELECT \"Column creatinine already exists\"');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+
+SET @exist := (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'thinking_help' AND table_name = 'health_profiles' AND column_name = 'bun');
+SET @sql := IF(@exist = 0, 'ALTER TABLE health_profiles ADD COLUMN bun DOUBLE', 'SELECT \"Column bun already exists\"');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+
+-- Patch 12: Create health profile history table
+CREATE TABLE IF NOT EXISTS health_profile_history (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    report_date VARCHAR(20),
+    profile_json LONGTEXT,
+    created_at DATETIME,
+    updated_at DATETIME
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- Patch 7: Rename legacy table names if present
 SET @exist_old := (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'thinking_help' AND table_name = 'health_profile');
 SET @exist_new := (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'thinking_help' AND table_name = 'health_profiles');
