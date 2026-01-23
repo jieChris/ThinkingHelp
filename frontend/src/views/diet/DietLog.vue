@@ -1,9 +1,9 @@
 <template>
   <div class="diet-log">
-    <el-card>
+    <el-card class="record-card">
       <template #header>
         <div class="card-header">
-          <span>模糊饮食记录</span>
+          <span>饮食记录</span>
         </div>
       </template>
       
@@ -18,19 +18,27 @@
         </el-form-item>
 
         <el-form-item label="食物">
-            <el-select v-model="form.foodId" placeholder="请搜索或选择食物" filterable style="width: 100%; max-width: 400px;">
+            <el-select
+                v-model="form.foodName"
+                placeholder="请搜索或输入食物"
+                filterable
+                allow-create
+                default-first-option
+                style="width: 100%; max-width: 400px;"
+                @change="handleFoodChange"
+            >
                 <el-option-group label="常见主食">
-                    <el-option label="米饭" :value="101" />
-                    <el-option label="馒头" :value="104" />
+                    <el-option label="米饭" value="米饭" />
+                    <el-option label="馒头" value="馒头" />
                 </el-option-group>
                 <el-option-group label="肉蛋奶">
-                    <el-option label="鸡胸肉" :value="102" />
-                    <el-option label="鸡蛋" :value="105" />
-                    <el-option label="牛奶" :value="106" />
+                    <el-option label="鸡胸肉" value="鸡胸肉" />
+                    <el-option label="鸡蛋" value="鸡蛋" />
+                    <el-option label="牛奶" value="牛奶" />
                 </el-option-group>
                 <el-option-group label="蔬果">
-                    <el-option label="西兰花" :value="103" />
-                    <el-option label="苹果" :value="107" />
+                    <el-option label="西兰花" value="西兰花" />
+                    <el-option label="苹果" value="苹果" />
                 </el-option-group>
             </el-select>
         </el-form-item>
@@ -42,7 +50,7 @@
                     :key="unit.value"
                     class="unit-card"
                     :class="{ active: form.unit === unit.value }"
-                    @click="form.unit = unit.value"
+                    @click="selectUnit(unit.value)"
                 >
                     <div class="icon">{{ unit.icon }}</div>
                     <div class="label">{{ unit.label }}</div>
@@ -55,6 +63,16 @@
              <el-input-number v-model="form.count" :min="0.5" :max="10" :step="0.5" />
         </el-form-item>
 
+        <el-form-item label="重量(克)">
+            <el-input-number v-model="form.weightGrams" :min="0" :max="5000" :step="10" />
+            <span class="hint-text">如已填写重量，将优先使用重量计算</span>
+        </el-form-item>
+
+        <el-form-item label="热量(kcal)">
+            <el-input-number v-model="form.calories" :min="0" :max="5000" :step="10" @change="handleCaloriesChange" />
+            <span class="hint-text">可选，预包装食品可手动填写</span>
+        </el-form-item>
+
         <el-form-item>
             <el-button type="primary" @click="submitLog" size="large" icon="Check">记录饮食</el-button>
         </el-form-item>
@@ -64,22 +82,136 @@
         <el-alert title="记录成功" type="success" :description="lastLog" show-icon />
       </div>
     </el-card>
+
+    <el-card class="history-card">
+        <template #header>
+            <div class="card-header">
+                <span>历史记录</span>
+                <div class="filter-actions">
+                    <el-button size="small" @click="applyPreset('today')">今天</el-button>
+                    <el-button size="small" @click="applyPreset('3d')">近3天</el-button>
+                    <el-button size="small" @click="applyPreset('week')">本周</el-button>
+                    <el-button size="small" @click="applyPreset('month')">本月</el-button>
+                    <el-button size="small" @click="applyPreset('all')">全部</el-button>
+                </div>
+            </div>
+        </template>
+        <div class="filter-row">
+            <el-date-picker
+                v-model="dateRange"
+                type="daterange"
+                range-separator="至"
+                start-placeholder="开始日期"
+                end-placeholder="结束日期"
+                format="YYYY-MM-DD"
+                value-format="YYYY-MM-DD"
+                @change="fetchLogs"
+            />
+            <div class="summary">
+                <span>记录数: <strong>{{ logs.length }}</strong></span>
+                <span>总热量: <strong>{{ totalCalories }}</strong> kcal</span>
+            </div>
+        </div>
+
+        <div v-for="group in groupedLogs" :key="group.key" class="meal-group">
+            <div class="meal-group-title">
+                <span>{{ group.title }}</span>
+                <span class="meal-group-total">总热量: {{ group.totalCalories }} kcal</span>
+            </div>
+            <el-table :data="group.items" style="width: 100%">
+                <el-table-column prop="recordedAt" label="时间" width="160" :formatter="formatDate" />
+                <el-table-column label="食物">
+                    <template #default="scope">
+                        {{ scope.row.foodName || foodLabel(scope.row.foodId) || '自定义' }}
+                    </template>
+                </el-table-column>
+                <el-table-column prop="weightGrams" label="重量(g)" width="120" />
+                <el-table-column prop="calories" label="热量(kcal)" width="120" />
+                <el-table-column label="来源" width="140">
+                    <template #default="scope">
+                        {{ caloriesSourceLabel(scope.row.caloriesSource) }}
+                    </template>
+                </el-table-column>
+                <el-table-column label="操作" width="140">
+                    <template #default="scope">
+                        <el-button link type="primary" @click="startEdit(scope.row)">编辑</el-button>
+                        <el-button link type="danger" @click="deleteLog(scope.row)">删除</el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </div>
+    </el-card>
+
+    <el-dialog v-model="editVisible" title="修改饮食记录" width="480px">
+        <el-form label-width="100px">
+            <el-form-item label="餐别">
+                <el-select v-model="editForm.mealType">
+                    <el-option label="早餐" value="BREAKFAST" />
+                    <el-option label="午餐" value="LUNCH" />
+                    <el-option label="晚餐" value="DINNER" />
+                    <el-option label="加餐" value="SNACK" />
+                </el-select>
+            </el-form-item>
+            <el-form-item label="食物">
+                <el-input v-model="editForm.foodName" />
+            </el-form-item>
+            <el-form-item label="分量估算">
+                <el-input v-model="editForm.unit" />
+            </el-form-item>
+            <el-form-item label="重量(g)">
+                <el-input-number v-model="editForm.weightGrams" :min="0" :max="5000" :step="10" />
+            </el-form-item>
+            <el-form-item label="热量(kcal)">
+                <el-input-number v-model="editForm.calories" :min="0" :max="5000" :step="10" />
+            </el-form-item>
+        </el-form>
+        <template #footer>
+            <el-button @click="editVisible = false">取消</el-button>
+            <el-button type="primary" @click="saveEdit">保存</el-button>
+        </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
+import dayjs from 'dayjs'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '../../api/request'
 
 const form = reactive({
     mealType: 'LUNCH',
+    foodName: '',
     foodId: null,
     unit: '',
-    count: 1
+    count: 1,
+    weightGrams: 0,
+    calories: 0
 })
 
 const lastLog = ref('')
+const logs = ref<any[]>([])
+const loading = ref(false)
+const dateRange = ref<[string, string] | null>(null)
+const editVisible = ref(false)
+const editForm = reactive({
+    id: null as number | null,
+    mealType: '',
+    foodName: '',
+    unit: '',
+    weightGrams: 0,
+    calories: 0
+})
+
+const foodCatalog = [
+    { id: 101, name: '米饭', kcalPer100g: 116 },
+    { id: 104, name: '馒头', kcalPer100g: 230 },
+    { id: 102, name: '鸡胸肉', kcalPer100g: 165 },
+    { id: 105, name: '鸡蛋', kcalPer100g: 143 },
+    { id: 106, name: '牛奶', kcalPer100g: 54 },
+    { id: 103, name: '西兰花', kcalPer100g: 34 },
+    { id: 107, name: '苹果', kcalPer100g: 52 }
+]
 
 const units = [
     { value: 'FIST', label: '一拳', icon: '👊', desc: '~150g (主食/水果)' },
@@ -87,22 +219,116 @@ const units = [
     { value: 'BOWL', label: '一碗', icon: '🥣', desc: '~250ml (汤/粥)' }
 ]
 
-const submitLog = async () => {
-    if (!form.foodId || !form.unit) {
-        ElMessage.warning('请选择食物和分量单位')
+const totalCalories = computed(() => {
+    return logs.value.reduce((sum, item) => sum + (Number(item.calories) || 0), 0)
+})
+
+const groupedLogs = computed(() => {
+    const groups: Record<string, { key: string; title: string; items: any[]; totalCalories: number }> = {}
+    logs.value.forEach((item) => {
+        const day = item.recordedAt ? dayjs(item.recordedAt).format('YYYY-MM-DD') : '未知日期'
+        const mealLabel = mealTypeLabel(item.mealType)
+        const key = `${day}_${item.mealType || 'UNKNOWN'}`
+        if (!groups[key]) {
+            groups[key] = {
+                key,
+                title: `${day} · ${mealLabel}`,
+                items: [],
+                totalCalories: 0
+            }
+        }
+        groups[key].items.push(item)
+        groups[key].totalCalories += Number(item.calories) || 0
+    })
+    return Object.values(groups).sort((a, b) => (a.key < b.key ? 1 : -1))
+})
+
+const handleFoodChange = () => {
+    const matched = foodCatalog.find((f) => f.name === form.foodName)
+    form.foodId = matched ? matched.id : null
+}
+
+const foodLabel = (id: number) => {
+    const item = foodCatalog.find((f) => f.id === id)
+    return item?.name
+}
+
+const selectUnit = (value: string) => {
+    if (form.unit === value) {
+        form.unit = ''
         return
     }
-    
+    form.unit = value
+    if (form.weightGrams) {
+        form.weightGrams = 0
+    }
+}
+
+watch(
+    () => form.weightGrams,
+    (val) => {
+        if (val && val > 0) {
+            form.unit = ''
+        }
+    }
+)
+
+const handleCaloriesChange = (val: number | undefined) => {
+    if (val && val > 0) {
+        form.unit = ''
+    }
+}
+
+const submitLog = async () => {
+    if (!form.foodName.trim()) {
+        ElMessage.warning('请选择或输入食物名称')
+        return
+    }
+    if (!form.unit && !form.weightGrams && !form.calories) {
+        ElMessage.warning('请选择分量估算、填写重量或填写热量')
+        return
+    }
+
+    const resolvedWeight = resolveWeightGrams()
+    let caloriesSource = ''
+    let calories = form.calories
+    if (!calories && resolvedWeight && form.foodId) {
+        const matched = foodCatalog.find((f) => f.id === form.foodId)
+        if (matched) {
+            calories = Math.round((resolvedWeight * matched.kcalPer100g) / 100)
+            caloriesSource = 'catalog'
+        }
+    }
+    if (calories && !caloriesSource) {
+        caloriesSource = 'manual'
+    }
+
+    if (!calories && resolvedWeight) {
+        const aiCalories = await estimateCaloriesByAi(form.foodName, resolvedWeight)
+        if (aiCalories) {
+            calories = aiCalories
+            caloriesSource = 'ai'
+        }
+    }
+
     try {
         const res: any = await request.post('/diet/logs', {
             mealType: form.mealType,
             foodId: form.foodId,
             unit: form.unit,
-            count: form.count
+            count: form.count,
+            foodName: form.foodName,
+            weightGrams: resolvedWeight || null,
+            calories: calories || null,
+            caloriesSource: caloriesSource || null
         })
         if (res.code === 200) {
-            lastLog.value = `已记录 ${form.mealType}: 食物ID ${form.foodId}, 分量 ${form.count} x ${form.unit}`
+            const portion = resolvedWeight
+                ? `${resolvedWeight}g`
+                : `${form.count} x ${form.unit}`
+            lastLog.value = `已记录 ${mealTypeLabel(form.mealType)}: ${form.foodName} ${portion}`
             ElMessage.success('记录成功，今日热量已更新')
+            fetchLogs()
         } else {
             ElMessage.error(res.msg || '记录失败')
         }
@@ -110,11 +336,171 @@ const submitLog = async () => {
         console.error(e)
     }
 }
+
+const formatDate = (row: any) => {
+    return dayjs(row.recordedAt).format('YYYY-MM-DD HH:mm')
+}
+
+const mealTypeLabel = (value: string) => {
+    const map: Record<string, string> = {
+        BREAKFAST: '早餐',
+        LUNCH: '午餐',
+        DINNER: '晚餐',
+        SNACK: '加餐'
+    }
+    return map[value] || value || '未知'
+}
+
+const caloriesSourceLabel = (value: string) => {
+    const map: Record<string, string> = {
+        catalog: '本地计算',
+        manual: '手动输入',
+        ai: 'AI估算(参考)'
+    }
+    return map[value] || ''
+}
+
+const resolveWeightGrams = () => {
+    if (form.weightGrams && form.weightGrams > 0) {
+        return Math.round(form.weightGrams)
+    }
+    if (form.unit) {
+        const unitMap: Record<string, number> = {
+            FIST: 150,
+            PALM: 120,
+            BOWL: 250
+        }
+        const base = unitMap[form.unit] || 0
+        if (base && form.count) {
+            return Math.round(base * form.count)
+        }
+    }
+    return 0
+}
+
+const estimateCaloriesByAi = async (foodName: string, weightGrams: number) => {
+    try {
+        const res: any = await request.post('/diet/logs/estimate-calories', {
+            foodName,
+            weightGrams
+        })
+        if (res.code === 200 && res.data?.calories) {
+            return Math.round(res.data.calories)
+        }
+    } catch (e) {
+        console.error(e)
+    }
+    return 0
+}
+
+const applyPreset = (preset: 'today' | '3d' | 'week' | 'month' | 'all') => {
+    if (preset === 'all') {
+        dateRange.value = null
+        fetchLogs()
+        return
+    }
+    const end = dayjs().endOf('day')
+    let start = dayjs().startOf('day')
+    if (preset === '3d') {
+        start = dayjs().subtract(2, 'day').startOf('day')
+    } else if (preset === 'week') {
+        start = dayjs().startOf('week')
+    } else if (preset === 'month') {
+        start = dayjs().startOf('month')
+    }
+    dateRange.value = [start.format('YYYY-MM-DD'), end.format('YYYY-MM-DD')]
+    fetchLogs()
+}
+
+const fetchLogs = async () => {
+    loading.value = true
+    try {
+        const params: any = {}
+        if (dateRange.value) {
+            params.start = `${dateRange.value[0]} 00:00:00`
+            params.end = `${dateRange.value[1]} 23:59:59`
+        }
+        const res: any = await request.get('/diet/logs', { params })
+        if (res.code === 200) {
+            logs.value = res.data || []
+        }
+    } catch (e) {
+        console.error(e)
+    } finally {
+        loading.value = false
+    }
+}
+
+const startEdit = (row: any) => {
+    editForm.id = row.id
+    editForm.mealType = row.mealType
+    editForm.foodName = row.foodName
+    editForm.unit = row.unit
+    editForm.weightGrams = row.weightGrams || 0
+    editForm.calories = row.calories || 0
+    editVisible.value = true
+}
+
+const saveEdit = async () => {
+    if (!editForm.id) return
+    try {
+        const res: any = await request.put(`/diet/logs/${editForm.id}`, {
+            mealType: editForm.mealType,
+            foodName: editForm.foodName,
+            unit: editForm.unit,
+            weightGrams: editForm.weightGrams || null,
+            calories: editForm.calories || null,
+            caloriesSource: editForm.calories ? 'manual' : null
+        })
+        if (res.code === 200) {
+            ElMessage.success('更新成功')
+            editVisible.value = false
+            fetchLogs()
+        } else {
+            ElMessage.error(res.msg || '更新失败')
+        }
+    } catch (e) {
+        console.error(e)
+    }
+}
+
+const deleteLog = async (row: any) => {
+    try {
+        await ElMessageBox.confirm('确定删除该记录吗？', '提示', {
+            confirmButtonText: '删除',
+            cancelButtonText: '取消',
+            type: 'warning'
+        })
+    } catch {
+        return
+    }
+    try {
+        const res: any = await request.delete(`/diet/logs/${row.id}`)
+        if (res.code === 200) {
+            ElMessage.success('删除成功')
+            fetchLogs()
+        } else {
+            ElMessage.error(res.msg || '删除失败')
+        }
+    } catch (e) {
+        console.error(e)
+    }
+}
+
+onMounted(() => {
+    applyPreset('week')
+})
 </script>
 
 <style scoped lang="scss">
 .diet-log {
-    /* Standardized in MainLayout */
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+.record-card,
+.history-card {
+    width: 100%;
 }
 .fuzzy-selector {
     display: flex;
@@ -158,5 +544,43 @@ const submitLog = async () => {
 }
 .log-preview {
     margin-top: 24px;
+}
+.filter-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+.filter-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.summary {
+    display: flex;
+    gap: 16px;
+    color: #4b5563;
+}
+.hint-text {
+    margin-left: 12px;
+    color: #9ca3af;
+    font-size: 12px;
+}
+.meal-group {
+    margin-bottom: 16px;
+}
+.meal-group-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 4px;
+    font-weight: 600;
+    color: #374151;
+}
+.meal-group-total {
+    font-size: 12px;
+    color: #6b7280;
 }
 </style>

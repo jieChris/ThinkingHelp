@@ -9,7 +9,7 @@ const service = axios.create({
 // Request interceptor
 service.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('token')
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token')
         if (token) {
             config.headers['Authorization'] = `Bearer ${token}`
         }
@@ -41,6 +41,7 @@ service.interceptors.response.use(
                     msg = '未授权，请重新登录'
                     // specific logic to redirect to login could go here
                     localStorage.removeItem('token')
+                    sessionStorage.removeItem('token')
                     if (window.location.pathname !== '/login') {
                         window.location.href = '/login'
                     }

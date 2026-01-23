@@ -8,18 +8,14 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
-@TableName("diet_logs")
-public class DietLog {
+@TableName("meal_plans")
+public class MealPlan {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Long userId;
-    private String mealType;
-    private Integer foodId;
-    private String foodName;
-    private String unit;
-    private Double count;
-    private Double weightGrams;
-    private Double calories;
-    private String caloriesSource;
-    private LocalDateTime recordedAt;
+    private String rangeType;
+    private String title;
+    private String advice;
+    private String planJson;
+    private LocalDateTime createdAt;
 }

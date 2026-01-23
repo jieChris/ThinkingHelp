@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @RestController
@@ -35,9 +36,17 @@ public class HealthRecordController {
 
     @GetMapping
     @Operation(summary = "获取综合记录列表")
-    public Result<List<HealthRecord>> listRecords(@RequestParam Long userId) {
+    public Result<List<HealthRecord>> listRecords(@RequestParam Long userId,
+                                                  @RequestParam(required = false) String start,
+                                                  @RequestParam(required = false) String end) {
         LambdaQueryWrapper<HealthRecord> query = new LambdaQueryWrapper<>();
         query.eq(HealthRecord::getUserId, userId);
+        if (start != null && !start.isEmpty()) {
+            query.ge(HealthRecord::getRecordedAt, parseDateTime(start));
+        }
+        if (end != null && !end.isEmpty()) {
+            query.le(HealthRecord::getRecordedAt, parseDateTime(end));
+        }
         query.orderByDesc(HealthRecord::getRecordedAt);
         return Result.success(healthRecordMapper.selectList(query));
     }
@@ -57,5 +66,10 @@ public class HealthRecordController {
         query.orderByDesc(HealthRecord::getRecordedAt);
         query.last("LIMIT 1");
         return Result.success(healthRecordMapper.selectOne(query));
+    }
+
+    private java.time.LocalDateTime parseDateTime(String value) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        return java.time.LocalDateTime.parse(value, formatter);
     }
 }

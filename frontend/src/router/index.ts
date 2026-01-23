@@ -82,7 +82,7 @@ router.beforeEach((to, from, next) => {
     document.title = (to.meta.title as string) || 'ThinkingHelp'
 
     // 2. Auth Check
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token')
     const whiteList = ['/login', '/register']
 
     if (whiteList.includes(to.path)) {

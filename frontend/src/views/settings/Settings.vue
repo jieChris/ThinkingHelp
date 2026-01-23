@@ -137,7 +137,7 @@ const saveSettingsToServer = async () => {
 const exportData = async () => {
     ElMessage.success('正在准备数据导出，请稍候...')
     try {
-        const token = localStorage.getItem('token')
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token')
         const response = await fetch('/api/user/export-data', {
             method: 'POST',
             headers: {

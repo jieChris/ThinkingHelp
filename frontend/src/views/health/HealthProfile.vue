@@ -125,6 +125,16 @@
       <!-- Tab 2: Health Metrics (New Feature) -->
       <el-tab-pane label="数据记录" name="metrics">
          <div class="metrics-container">
+             <div class="long-term-card">
+                 <div class="card-header">
+                     <h3>📌 长期数据</h3>
+                     <el-button size="small" @click="openLongTermDialog">修改</el-button>
+                 </div>
+                 <div class="card-body">
+                     <div class="item">身高: <strong>{{ longTerm.height || '--' }}</strong> cm</div>
+                     <div class="item">忌口: <strong>{{ longTerm.restrictions || '未填写' }}</strong></div>
+                 </div>
+             </div>
              <div class="record-form">
                  <div class="form-header">
                     <h3>📝 批量记录数据</h3>
@@ -139,14 +149,6 @@
                  
                  <el-form :model="batchForm.values" label-width="100px" class="batch-form-grid">
                     <el-row :gutter="20">
-                        <!-- Height -->
-                        <el-col :span="8">
-                            <el-form-item label="身高">
-                                <el-input v-model="batchForm.values.height" type="number" step="0.1">
-                                    <template #append>cm</template>
-                                </el-input>
-                            </el-form-item>
-                        </el-col>
                         <!-- Weight -->
                         <el-col :span="8">
                             <el-form-item label="体重">
@@ -205,12 +207,30 @@
              <div class="history-list">
                  <div class="list-header">
                      <h3>📅 历史记录</h3>
-                     <el-button circle icon="Refresh" @click="fetchMetrics" />
+                     <div class="list-actions">
+                         <el-button size="small" @click="applyMetricsPreset('day')">今天</el-button>
+                         <el-button size="small" @click="applyMetricsPreset('3d')">近3天</el-button>
+                         <el-button size="small" @click="applyMetricsPreset('week')">本周</el-button>
+                         <el-button size="small" @click="applyMetricsPreset('month')">本月</el-button>
+                         <el-button size="small" @click="applyMetricsPreset('all')">全部</el-button>
+                         <el-button circle icon="Refresh" @click="fetchMetrics" />
+                     </div>
+                 </div>
+                 <div class="filter-row">
+                     <el-date-picker
+                        v-model="metricsRange"
+                        type="daterange"
+                        range-separator="至"
+                        start-placeholder="开始日期"
+                        end-placeholder="结束日期"
+                        format="YYYY-MM-DD"
+                        value-format="YYYY-MM-DD"
+                        @change="fetchMetrics"
+                     />
                  </div>
                  
                  <el-table :data="metricsList" style="width: 100%" v-loading="loadingMetrics">
                     <el-table-column prop="recordedAt" label="记录时间" width="160" :formatter="formatDate" />
-                    <el-table-column prop="height" label="身高(cm)" width="100" />
                     <el-table-column prop="weight" label="体重(kg)" width="100" />
                     <el-table-column label="血压(mmHg)" width="140">
                          <template #default="scope">
@@ -232,10 +252,25 @@
       </el-tab-pane>
     </el-tabs>
   </div>
+
+  <el-dialog v-model="longTermDialogVisible" title="长期数据" width="480px">
+      <el-form label-width="100px">
+          <el-form-item label="身高(cm)">
+              <el-input-number v-model="longTermForm.height" :min="50" :max="250" :step="1" />
+          </el-form-item>
+          <el-form-item label="忌口">
+              <el-input v-model="longTermForm.restrictions" type="textarea" placeholder="如：不吃香菜，不吃发物..." />
+          </el-form-item>
+      </el-form>
+      <template #footer>
+          <el-button @click="longTermDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="saveLongTerm">保存</el-button>
+      </template>
+  </el-dialog>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '../../stores/user'
 import request from '../../api/request'
@@ -246,6 +281,16 @@ const activeTab = ref('profile')
 const activeStep = ref(0)
 const ocrProgress = ref(0)
 const defaultTime = new Date(2000, 1, 1, 8, 0, 0)
+const metricsRange = ref<[string, string] | null>(null)
+const longTermDialogVisible = ref(false)
+const longTerm = reactive({
+    height: '',
+    restrictions: ''
+})
+const longTermForm = reactive({
+    height: 0,
+    restrictions: ''
+})
 
 // --- Profile Logic ---
 const form = reactive({
@@ -306,24 +351,36 @@ const fetchProfile = async () => {
     }
 }
 
+const buildProfilePayload = () => {
+    return {
+        name: form.name,
+        gender: form.gender,
+        age: form.age,
+        height: form.height,
+        weight: form.weight,
+        bmi: form.bmi,
+        diseases: form.diseases,
+        allergies: form.allergies,
+        otherRestrictions: form.otherRestrictions
+    }
+}
+
 const submitProfile = async () => {
     try {
-        const res: any = await request.post('/health/profile', {
-            name: form.name,
-            gender: form.gender,
-            age: form.age,
-            height: form.height,
-            weight: form.weight,
-            bmi: form.bmi,
-            diseases: form.diseases,
-            allergies: form.allergies,
-            otherRestrictions: form.otherRestrictions
-        })
+        const res: any = await request.post('/health/profile', buildProfilePayload())
         if (res.code === 200) {
             ElMessage.success('档案保存成功！')
         } else {
             ElMessage.error(res.msg || '保存失败')
         }
+    } catch (e) {
+        console.error(e)
+    }
+}
+
+const saveProfileSilently = async () => {
+    try {
+        await request.post('/health/profile', buildProfilePayload())
     } catch (e) {
         console.error(e)
     }
@@ -349,7 +406,6 @@ const metricsList = ref<HealthRecord[]>([])
 const batchForm = reactive({
     recordedAt: new Date(),
     values: {
-        height: '',
         weight: '',
         systolic: '',
         diastolic: '',
@@ -366,9 +422,12 @@ const fetchMetrics = async () => {
     if (!userStore.user?.id) return
     loadingMetrics.value = true
     try {
-        const res: any = await request.get('/health/records', {
-            params: { userId: userStore.user.id }
-        })
+        const params: any = { userId: userStore.user.id }
+        if (metricsRange.value) {
+            params.start = `${metricsRange.value[0]} 00:00:00`
+            params.end = `${metricsRange.value[1]} 23:59:59`
+        }
+        const res: any = await request.get('/health/records', { params })
         if (res.code === 200) {
             metricsList.value = res.data
             prefillBatchForm()
@@ -384,7 +443,6 @@ const prefillBatchForm = () => {
     // Get latest record
     if (metricsList.value.length > 0) {
         const latest = metricsList.value[0]
-        batchForm.values.height = latest.height || ''
         batchForm.values.weight = latest.weight || ''
         batchForm.values.systolic = latest.systolic || ''
         batchForm.values.diastolic = latest.diastolic || ''
@@ -392,7 +450,6 @@ const prefillBatchForm = () => {
         batchForm.values.heart_rate = latest.heartRate || ''
     } else {
         // Defaults
-        batchForm.values.height = 170
         batchForm.values.weight = 60
         batchForm.values.systolic = 120
         batchForm.values.diastolic = 80
@@ -409,7 +466,6 @@ const submitBatchMetrics = async () => {
         // Construct payload manually from form to entity fields
         const payload = {
             userId: userStore.user.id,
-            height: batchForm.values.height ? Number(batchForm.values.height) : null,
             weight: batchForm.values.weight ? Number(batchForm.values.weight) : null,
             systolic: batchForm.values.systolic ? Number(batchForm.values.systolic) : null,
             diastolic: batchForm.values.diastolic ? Number(batchForm.values.diastolic) : null,
@@ -444,8 +500,90 @@ const deleteMetric = async (id: number) => {
 
 onMounted(() => {
     fetchProfile()
+    loadLongTermData()
     fetchMetrics()
 })
+
+const loadLongTermData = async () => {
+    const userId = userStore.user?.id
+    if (!userId) return
+    const cacheKey = `long_term_data_${userId}`
+    const cached = localStorage.getItem(cacheKey)
+    if (cached) {
+        try {
+            const parsed = JSON.parse(cached)
+            longTerm.height = parsed.height || ''
+            longTerm.restrictions = parsed.restrictions || ''
+            return
+        } catch (e) {
+            console.error(e)
+        }
+    }
+    try {
+        const res: any = await request.get('/health/profile')
+        if (res.code === 200 && res.data) {
+            longTerm.height = res.data.height ? String(res.data.height) : ''
+            longTerm.restrictions = res.data.otherRestrictions || ''
+            localStorage.setItem(cacheKey, JSON.stringify(longTerm))
+        }
+    } catch (e) {
+        console.error(e)
+    }
+}
+
+const openLongTermDialog = () => {
+    longTermForm.height = longTerm.height ? Number(longTerm.height) : 0
+    longTermForm.restrictions = longTerm.restrictions || ''
+    longTermDialogVisible.value = true
+}
+
+const saveLongTerm = async () => {
+    const userId = userStore.user?.id
+    if (!userId) return
+    longTerm.height = longTermForm.height ? String(longTermForm.height) : ''
+    longTerm.restrictions = longTermForm.restrictions || ''
+    localStorage.setItem(`long_term_data_${userId}`, JSON.stringify(longTerm))
+    form.height = longTermForm.height || form.height
+    form.otherRestrictions = longTermForm.restrictions || form.otherRestrictions
+    longTermDialogVisible.value = false
+    await saveProfileSilently()
+    ElMessage.success('长期数据已保存')
+}
+
+const applyMetricsPreset = (preset: 'day' | '3d' | 'week' | 'month' | 'all') => {
+    if (preset === 'all') {
+        metricsRange.value = null
+        fetchMetrics()
+        return
+    }
+    const end = dayjs().endOf('day')
+    let start = dayjs().startOf('day')
+    if (preset === '3d') {
+        start = dayjs().subtract(2, 'day').startOf('day')
+    } else if (preset === 'week') {
+        const day = dayjs().day()
+        const diff = day === 0 ? -6 : 1 - day
+        start = dayjs().add(diff, 'day').startOf('day')
+    } else if (preset === 'month') {
+        start = dayjs().startOf('month')
+    }
+    metricsRange.value = [start.format('YYYY-MM-DD'), end.format('YYYY-MM-DD')]
+    fetchMetrics()
+}
+
+watch(
+    () => activeTab.value,
+    (tab) => {
+        if (tab !== 'metrics') return
+        const userId = userStore.user?.id
+        if (!userId) return
+        const promptKey = `long_term_prompted_${userId}`
+        if (!localStorage.getItem(promptKey)) {
+            localStorage.setItem(promptKey, 'true')
+            openLongTermDialog()
+        }
+    }
+)
 </script>
 
 <style scoped lang="scss">
@@ -503,6 +641,31 @@ onMounted(() => {
 
 .metrics-container {
     padding: 20px;
+
+    .long-term-card {
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 20px;
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            h3 { margin: 0; }
+        }
+
+        .card-body {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            .item {
+                color: #7c2d12;
+            }
+        }
+    }
     
     .record-form {
         h3 {
@@ -542,6 +705,12 @@ onMounted(() => {
             margin-bottom: 15px;
             
             h3 { margin: 0; }
+            .list-actions {
+                display: flex;
+                gap: 8px;
+                flex-wrap: wrap;
+                align-items: center;
+            }
         }
         
         .metric-value {
@@ -554,6 +723,9 @@ onMounted(() => {
             color: #999;
             margin-left: 4px;
         }
+    }
+    .filter-row {
+        margin-bottom: 12px;
     }
 }
 </style>

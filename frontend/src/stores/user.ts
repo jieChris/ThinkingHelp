@@ -21,8 +21,11 @@ interface User {
 }
 
 export const useUserStore = defineStore('user', () => {
-    const token = ref<string | null>(localStorage.getItem('token'))
-    const storedUser = localStorage.getItem('user')
+    const getStoredToken = () => localStorage.getItem('token') || sessionStorage.getItem('token')
+    const getStoredUser = () => localStorage.getItem('user') || sessionStorage.getItem('user')
+
+    const token = ref<string | null>(getStoredToken())
+    const storedUser = getStoredUser()
     const user = ref<User | null>(storedUser ? JSON.parse(storedUser) : null)
 
     const settings = ref<UserSettings>({
@@ -39,11 +42,15 @@ export const useUserStore = defineStore('user', () => {
         return sizes[settings.value.fontSize] || 1
     })
 
-    const login = (newToken: string, userInfo: User) => {
+    const login = (newToken: string, userInfo: User, remember = false) => {
         token.value = newToken
         user.value = userInfo
-        localStorage.setItem('token', newToken)
-        localStorage.setItem('user', JSON.stringify(userInfo))
+        const primaryStorage = remember ? localStorage : sessionStorage
+        const secondaryStorage = remember ? sessionStorage : localStorage
+        primaryStorage.setItem('token', newToken)
+        primaryStorage.setItem('user', JSON.stringify(userInfo))
+        secondaryStorage.removeItem('token')
+        secondaryStorage.removeItem('user')
 
         // If backend sends settings, we should merge them here
         // For now, valid login triggers setting application
@@ -56,6 +63,8 @@ export const useUserStore = defineStore('user', () => {
         user.value = null
         localStorage.removeItem('token')
         localStorage.removeItem('user')
+        sessionStorage.removeItem('token')
+        sessionStorage.removeItem('user')
         if (userId) {
             localStorage.removeItem(`chat_sessions_${userId}`)
         }

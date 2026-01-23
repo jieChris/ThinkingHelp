@@ -48,9 +48,24 @@ CREATE TABLE IF NOT EXISTS diet_logs (
     user_id BIGINT NOT NULL,
     meal_type VARCHAR(20) NOT NULL,
     food_id INT,
+    food_name VARCHAR(100),
     unit VARCHAR(20),
     count DOUBLE,
+    weight_grams DOUBLE,
+    calories DOUBLE,
+    calories_source VARCHAR(30),
     recorded_at DATETIME
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Patch 10: Create Meal Plans Table
+CREATE TABLE IF NOT EXISTS meal_plans (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    range_type VARCHAR(20),
+    title VARCHAR(200),
+    advice TEXT,
+    plan_json LONGTEXT,
+    created_at DATETIME
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Patch 7: Rename legacy table names if present
@@ -88,5 +103,26 @@ SET @sql := IF(@exist = 0 AND @pk = 0,
         'SELECT "Column id already exists"'
     )
 );
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+
+-- Patch 9: Extend diet_logs columns
+SET @exist := (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'thinking_help' AND table_name = 'diet_logs' AND column_name = 'food_name');
+SET @sql := IF(@exist = 0, 'ALTER TABLE diet_logs ADD COLUMN food_name VARCHAR(100)', 'SELECT "Column food_name already exists"');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+
+SET @exist := (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'thinking_help' AND table_name = 'diet_logs' AND column_name = 'weight_grams');
+SET @sql := IF(@exist = 0, 'ALTER TABLE diet_logs ADD COLUMN weight_grams DOUBLE', 'SELECT "Column weight_grams already exists"');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+
+SET @exist := (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'thinking_help' AND table_name = 'diet_logs' AND column_name = 'calories');
+SET @sql := IF(@exist = 0, 'ALTER TABLE diet_logs ADD COLUMN calories DOUBLE', 'SELECT "Column calories already exists"');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+
+SET @exist := (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'thinking_help' AND table_name = 'diet_logs' AND column_name = 'calories_source');
+SET @sql := IF(@exist = 0, 'ALTER TABLE diet_logs ADD COLUMN calories_source VARCHAR(30)', 'SELECT "Column calories_source already exists"');
 PREPARE stmt FROM @sql;
 EXECUTE stmt;

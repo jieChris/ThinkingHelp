@@ -56,7 +56,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../../stores/user'
 import { login } from '../../api/auth'
@@ -94,7 +94,16 @@ const handleLogin = async () => {
                 // Result<Map> -> data = { token, user }
                 if (res.code === 200) {
                      const { token, user } = res.data
-                     userStore.login(token, user)
+                     userStore.login(token, user, form.remember)
+                     if (form.remember) {
+                         localStorage.setItem('login_username', form.username)
+                         localStorage.setItem('login_password', form.password)
+                         localStorage.setItem('login_remember', 'true')
+                     } else {
+                         localStorage.removeItem('login_username')
+                         localStorage.removeItem('login_password')
+                         localStorage.removeItem('login_remember')
+                     }
                      ElMessage.success('登录成功')
                      router.push('/dashboard')
                 } else {
@@ -113,6 +122,26 @@ const handleLogin = async () => {
 const goRegister = () => {
     router.push('/register')
 }
+
+onMounted(() => {
+    const remember = localStorage.getItem('login_remember') === 'true'
+    if (remember) {
+        form.remember = true
+        form.username = localStorage.getItem('login_username') || ''
+        form.password = localStorage.getItem('login_password') || ''
+    }
+})
+
+watch(
+    () => form.remember,
+    (val) => {
+        if (!val) {
+            localStorage.removeItem('login_username')
+            localStorage.removeItem('login_password')
+            localStorage.removeItem('login_remember')
+        }
+    }
+)
 </script>
 
 <style scoped lang="scss">

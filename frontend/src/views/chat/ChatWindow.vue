@@ -324,7 +324,7 @@ const sendMessage = async () => {
     scheduleSave()
 
     try {
-        const token = localStorage.getItem('token')
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token')
         abortController.value = new AbortController()
         const response = await fetch('/api/chat/stream', {
             method: 'POST',
