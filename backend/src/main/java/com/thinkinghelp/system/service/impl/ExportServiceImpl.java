@@ -36,7 +36,12 @@ public class ExportServiceImpl implements ExportService {
                 "\nReturn strictly in JSON format matching the following structure: " +
                 "{ title, advice, weeklyPlan: [{ day, breakfast: {name, foods:[], calories}, lunch... }], shoppingList: { ingredient: quantity } }";
 
-        return aiService.chat(prompt, MealPlanDTO.class);
+        try {
+            return aiService.chat(prompt, MealPlanDTO.class);
+        } catch (Exception e) {
+            log.warn("AI meal plan generation failed, using fallback plan", e);
+            return buildFallbackMealPlan();
+        }
     }
 
     @Override
@@ -60,5 +65,47 @@ public class ExportServiceImpl implements ExportService {
             log.error("Error generating PDF", e);
             throw new RuntimeException("PDF Generation Failed");
         }
+    }
+
+    private MealPlanDTO buildFallbackMealPlan() {
+        MealPlanDTO plan = new MealPlanDTO();
+        plan.setTitle("健康基础周食谱(备用)");
+        plan.setAdvice("当前使用基础模板食谱，建议低盐、少油、多蔬果。");
+
+        MealPlanDTO.Meal breakfast = new MealPlanDTO.Meal();
+        breakfast.setName("燕麦粥 + 水煮蛋");
+        breakfast.setCalories("350kcal");
+
+        MealPlanDTO.Meal lunch = new MealPlanDTO.Meal();
+        lunch.setName("清蒸鱼 + 糙米饭 + 青菜");
+        lunch.setCalories("600kcal");
+
+        MealPlanDTO.Meal dinner = new MealPlanDTO.Meal();
+        dinner.setName("蔬菜汤 + 全麦面包");
+        dinner.setCalories("400kcal");
+
+        MealPlanDTO.DailyPlan day1 = new MealPlanDTO.DailyPlan();
+        day1.setDay("周一");
+        day1.setBreakfast(breakfast);
+        day1.setLunch(lunch);
+        day1.setDinner(dinner);
+
+        MealPlanDTO.DailyPlan day2 = new MealPlanDTO.DailyPlan();
+        day2.setDay("周二");
+        day2.setBreakfast(breakfast);
+        day2.setLunch(lunch);
+        day2.setDinner(dinner);
+
+        plan.setWeeklyPlan(java.util.Arrays.asList(day1, day2));
+
+        Map<String, String> shopping = new HashMap<>();
+        shopping.put("燕麦", "500g");
+        shopping.put("鸡蛋", "6个");
+        shopping.put("糙米", "1kg");
+        shopping.put("青菜", "3把");
+        shopping.put("鱼肉", "800g");
+        plan.setShoppingList(shopping);
+
+        return plan;
     }
 }

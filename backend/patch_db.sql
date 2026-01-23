@@ -52,3 +52,41 @@ CREATE TABLE IF NOT EXISTS diet_logs (
     count DOUBLE,
     recorded_at DATETIME
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Patch 7: Rename legacy table names if present
+SET @exist_old := (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'thinking_help' AND table_name = 'health_profile');
+SET @exist_new := (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'thinking_help' AND table_name = 'health_profiles');
+SET @sql := IF(@exist_old = 1 AND @exist_new = 0, 'RENAME TABLE health_profile TO health_profiles', 'SELECT "health_profiles ok"');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+
+SET @exist_old := (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'thinking_help' AND table_name = 'diet_log');
+SET @exist_new := (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'thinking_help' AND table_name = 'diet_logs');
+SET @sql := IF(@exist_old = 1 AND @exist_new = 0, 'RENAME TABLE diet_log TO diet_logs', 'SELECT "diet_logs ok"');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+
+-- Patch 8: Ensure id column exists (avoid multiple primary key)
+SET @exist := (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'thinking_help' AND table_name = 'health_profiles' AND column_name = 'id');
+SET @pk := (SELECT count(*) FROM information_schema.table_constraints WHERE table_schema = 'thinking_help' AND table_name = 'health_profiles' AND constraint_type = 'PRIMARY KEY');
+SET @sql := IF(@exist = 0 AND @pk = 0,
+    'ALTER TABLE health_profiles ADD COLUMN id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST',
+    IF(@exist = 0 AND @pk = 1,
+        'ALTER TABLE health_profiles ADD COLUMN id BIGINT NOT NULL AUTO_INCREMENT UNIQUE FIRST',
+        'SELECT "Column id already exists"'
+    )
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+
+SET @exist := (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'thinking_help' AND table_name = 'diet_logs' AND column_name = 'id');
+SET @pk := (SELECT count(*) FROM information_schema.table_constraints WHERE table_schema = 'thinking_help' AND table_name = 'diet_logs' AND constraint_type = 'PRIMARY KEY');
+SET @sql := IF(@exist = 0 AND @pk = 0,
+    'ALTER TABLE diet_logs ADD COLUMN id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST',
+    IF(@exist = 0 AND @pk = 1,
+        'ALTER TABLE diet_logs ADD COLUMN id BIGINT NOT NULL AUTO_INCREMENT UNIQUE FIRST',
+        'SELECT "Column id already exists"'
+    )
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
