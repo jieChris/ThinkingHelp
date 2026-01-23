@@ -14,3 +14,19 @@ Persistence check failed. Data: null
 [2026-01-23T10:04:13.893Z] 4. 饮食记录 - 4.2 获取列表
 {"code":500,"message":"\r\n### Error querying database.  Cause: java.sql.SQLSyntaxErrorException: Unknown column 'meal_type' in 'field list'\r\n### The error may exist in com/thinkinghelp/system/mapper/DietLogMapper.java (best guess)\r\n### The error may involve defaultParameterMap\r\n### The error occurred while setting parameters\r\n### SQL: SELECT  id,user_id,meal_type,food_id,unit,count,recorded_at  FROM diet_logs      WHERE  (user_id = ?) ORDER BY recorded_at DESC\r\n### Cause: java.sql.SQLSyntaxErrorException: Unknown column 'meal_type' in 'field list'\n; bad SQL grammar []","data":null}
 ------------------
+
+[2026-01-23T10:12:31.278Z] 7. 用户设置 - 7.1 获取设置
+{"code":500,"message":"\r\n### Error querying database.  Cause: java.sql.SQLSyntaxErrorException: Table 'thinking_help.user_settings' doesn't exist\r\n### The error may exist in com/thinkinghelp/system/mapper/UserSettingsMapper.java (best guess)\r\n### The error may involve defaultParameterMap\r\n### The error occurred while setting parameters\r\n### SQL: SELECT user_id,font_size,theme,ai_persona,notification_enabled,updated_at FROM user_settings WHERE user_id=?\r\n### Cause: java.sql.SQLSyntaxErrorException: Table 'thinking_help.user_settings' doesn't exist\n; bad SQL grammar []","data":null}
+------------------
+
+[2026-01-23T10:12:31.304Z] 7. 用户设置 - 7.2 更新设置
+{"code":500,"message":"\r\n### Error querying database.  Cause: java.sql.SQLSyntaxErrorException: Table 'thinking_help.user_settings' doesn't exist\r\n### The error may exist in com/thinkinghelp/system/mapper/UserSettingsMapper.java (best guess)\r\n### The error may involve defaultParameterMap\r\n### The error occurred while setting parameters\r\n### SQL: SELECT COUNT( * ) AS total FROM user_settings      WHERE  (user_id = ?)\r\n### Cause: java.sql.SQLSyntaxErrorException: Table 'thinking_help.user_settings' doesn't exist\n; bad SQL grammar []","data":null}
+------------------
+
+[2026-01-23T10:16:56.746Z] 7. 用户设置 - 7.1 获取设置
+{"code":500,"message":"\r\n### Error querying database.  Cause: java.sql.SQLSyntaxErrorException: Table 'thinking_help.user_settings' doesn't exist\r\n### The error may exist in com/thinkinghelp/system/mapper/UserSettingsMapper.java (best guess)\r\n### The error may involve defaultParameterMap\r\n### The error occurred while setting parameters\r\n### SQL: SELECT user_id,font_size,theme,ai_persona,notification_enabled,updated_at FROM user_settings WHERE user_id=?\r\n### Cause: java.sql.SQLSyntaxErrorException: Table 'thinking_help.user_settings' doesn't exist\n; bad SQL grammar []","data":null}
+------------------
+
+[2026-01-23T10:16:56.766Z] 7. 用户设置 - 7.2 更新设置
+{"code":500,"message":"\r\n### Error querying database.  Cause: java.sql.SQLSyntaxErrorException: Table 'thinking_help.user_settings' doesn't exist\r\n### The error may exist in com/thinkinghelp/system/mapper/UserSettingsMapper.java (best guess)\r\n### The error may involve defaultParameterMap\r\n### The error occurred while setting parameters\r\n### SQL: SELECT COUNT( * ) AS total FROM user_settings      WHERE  (user_id = ?)\r\n### Cause: java.sql.SQLSyntaxErrorException: Table 'thinking_help.user_settings' doesn't exist\n; bad SQL grammar []","data":null}
+------------------

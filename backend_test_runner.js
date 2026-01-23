@@ -284,17 +284,36 @@ async function testAdminUserList() {
 
 
 function generateReport() {
-    let md = '# 后端接口测试结果报告\\n\\n';
-    md += `> 测试时间: ${new Date().toLocaleString()}\\n\\n`;
+    let md = '# 后端接口测试结果报告\n\n';
+    md += `> 测试时间: ${new Date().toLocaleString()}\n\n`;
     
-    md += '| 模块 | 测试点 | 结果 | 详情 |\\n';
-    md += '| :--- | :--- | :--- | :--- |\\n';
+    md += '| 模块 | 测试点 | 结果 | 详情 |\n';
+    md += '| :--- | :--- | :--- | :--- |\n';
     
     RESULTS.forEach(r => {
         const icon = r.status === 'PASS' ? '✅' : '❌';
-        // Excape pipes checks
-        const details = r.details.replace(/\|/g, '\\|').replace(/\n/g, ' ');
-        md += `| ${r.module} | ${r.test} | ${icon} ${r.status} | ${details} |\\n`;
+        let details = r.details;
+        
+        // Format JSON if possible
+        if (details.startsWith('{') || details.startsWith('[')) {
+            try {
+                // Parse and pretty print, then escape for markdown table
+                const obj = JSON.parse(details);
+                const pretty = JSON.stringify(obj, null, 2);
+                // Use <br> and &nbsp; for formatting inside table cell, or just <code> block
+                // Markdown tables don't support multi-line code blocks well. 
+                // We'll use a single line code span if short, or just escape pipes.
+                // Better approach: replace newlines with <br> and wrap in <pre>
+                 details = `<pre>${pretty.replace(/\n/g, '<br>').replace(/ /g, '&nbsp;')}</pre>`;
+            } catch (e) {
+                // If not valid JSON, just escape pipes
+                 details = details.replace(/\|/g, '\\|').replace(/\n/g, '<br>');
+            }
+        } else {
+             details = details.replace(/\|/g, '\\|').replace(/\n/g, '<br>');
+        }
+
+        md += `| ${r.module} | ${r.test} | ${icon} ${r.status} | ${details} |\n`;
     });
 
     try {
