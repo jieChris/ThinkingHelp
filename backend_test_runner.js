@@ -9,6 +9,11 @@ const RESULTS = [];
 const logResult = (moduleName, testName, status, details) => {
     console.log(`[${status}] ${moduleName} - ${testName}`);
     RESULTS.push({ module: moduleName, test: testName, status: status, details: details });
+    if (status === 'FAIL') {
+        try {
+            fs.appendFileSync('error_details.log', `\n[${new Date().toISOString()}] ${moduleName} - ${testName}\n${details}\n------------------\n`);
+        } catch (e) {}
+    }
 };
 
 async function runTests() {
