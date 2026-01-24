@@ -149,6 +149,33 @@ CREATE TABLE IF NOT EXISTS health_profile_history (
     updated_at DATETIME
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Patch 13: Create AI configs table
+CREATE TABLE IF NOT EXISTS ai_configs (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    config_key VARCHAR(50) NOT NULL UNIQUE,
+    api_key VARCHAR(200),
+    base_url VARCHAR(200),
+    model VARCHAR(100),
+    temperature DOUBLE,
+    max_tokens INT,
+    enabled TINYINT DEFAULT 1,
+    created_at DATETIME,
+    updated_at DATETIME
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Patch 14: Create meal plan async task table
+CREATE TABLE IF NOT EXISTS meal_plan_tasks (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    range_type VARCHAR(20),
+    requirements TEXT,
+    status VARCHAR(20),
+    plan_json LONGTEXT,
+    error_message TEXT,
+    created_at DATETIME,
+    updated_at DATETIME
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- Patch 7: Rename legacy table names if present
 SET @exist_old := (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'thinking_help' AND table_name = 'health_profile');
 SET @exist_new := (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'thinking_help' AND table_name = 'health_profiles');
@@ -200,6 +227,26 @@ EXECUTE stmt;
 
 SET @exist := (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'thinking_help' AND table_name = 'diet_logs' AND column_name = 'calories');
 SET @sql := IF(@exist = 0, 'ALTER TABLE diet_logs ADD COLUMN calories DOUBLE', 'SELECT "Column calories already exists"');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+
+SET @exist := (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'thinking_help' AND table_name = 'diet_logs' AND column_name = 'carbs_grams');
+SET @sql := IF(@exist = 0, 'ALTER TABLE diet_logs ADD COLUMN carbs_grams DOUBLE', 'SELECT "Column carbs_grams already exists"');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+
+SET @exist := (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'thinking_help' AND table_name = 'diet_logs' AND column_name = 'sugar_grams');
+SET @sql := IF(@exist = 0, 'ALTER TABLE diet_logs ADD COLUMN sugar_grams DOUBLE', 'SELECT "Column sugar_grams already exists"');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+
+SET @exist := (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'thinking_help' AND table_name = 'diet_logs' AND column_name = 'carbs_source');
+SET @sql := IF(@exist = 0, 'ALTER TABLE diet_logs ADD COLUMN carbs_source VARCHAR(20)', 'SELECT "Column carbs_source already exists"');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+
+SET @exist := (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'thinking_help' AND table_name = 'diet_logs' AND column_name = 'sugar_source');
+SET @sql := IF(@exist = 0, 'ALTER TABLE diet_logs ADD COLUMN sugar_source VARCHAR(20)', 'SELECT "Column sugar_source already exists"');
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
 

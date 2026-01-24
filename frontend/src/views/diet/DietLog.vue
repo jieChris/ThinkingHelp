@@ -73,6 +73,15 @@
             <span class="hint-text">可选，预包装食品可手动填写</span>
         </el-form-item>
 
+        <el-form-item label="碳水(g)">
+            <el-input-number v-model="form.carbsGrams" :min="0" :max="500" :step="1" @change="handleCarbsChange" />
+            <span class="hint-text">糖尿病管理可填写</span>
+        </el-form-item>
+
+        <el-form-item label="糖(g)">
+            <el-input-number v-model="form.sugarGrams" :min="0" :max="200" :step="1" @change="handleSugarChange" />
+        </el-form-item>
+
         <el-form-item>
             <el-button type="primary" @click="submitLog" size="large" icon="Check">记录饮食</el-button>
         </el-form-item>
@@ -110,6 +119,8 @@
             <div class="summary">
                 <span>记录数: <strong>{{ logs.length }}</strong></span>
                 <span>总热量: <strong>{{ totalCalories }}</strong> kcal</span>
+                <span>总碳水: <strong>{{ totalCarbs }}</strong> g</span>
+                <span>总糖: <strong>{{ totalSugar }}</strong> g</span>
             </div>
         </div>
 
@@ -126,6 +137,18 @@
                     </template>
                 </el-table-column>
                 <el-table-column prop="weightGrams" label="重量(g)" width="120" />
+                <el-table-column label="碳水(g)" width="120">
+                    <template #default="scope">
+                        <span>{{ scope.row.carbsGrams ?? '--' }}</span>
+                        <span v-if="scope.row.carbsSource === 'ai'" class="source-tag">AI</span>
+                    </template>
+                </el-table-column>
+                <el-table-column label="糖(g)" width="120">
+                    <template #default="scope">
+                        <span>{{ scope.row.sugarGrams ?? '--' }}</span>
+                        <span v-if="scope.row.sugarSource === 'ai'" class="source-tag">AI</span>
+                    </template>
+                </el-table-column>
                 <el-table-column prop="calories" label="热量(kcal)" width="120" />
                 <el-table-column label="来源" width="140">
                     <template #default="scope">
@@ -164,6 +187,12 @@
             <el-form-item label="热量(kcal)">
                 <el-input-number v-model="editForm.calories" :min="0" :max="5000" :step="10" />
             </el-form-item>
+            <el-form-item label="碳水(g)">
+                <el-input-number v-model="editForm.carbsGrams" :min="0" :max="500" :step="1" />
+            </el-form-item>
+            <el-form-item label="糖(g)">
+                <el-input-number v-model="editForm.sugarGrams" :min="0" :max="200" :step="1" />
+            </el-form-item>
         </el-form>
         <template #footer>
             <el-button @click="editVisible = false">取消</el-button>
@@ -186,7 +215,11 @@ const form = reactive({
     unit: '',
     count: 1,
     weightGrams: 0,
-    calories: 0
+    calories: 0,
+    carbsGrams: 0,
+    sugarGrams: 0,
+    carbsSource: '',
+    sugarSource: ''
 })
 
 const lastLog = ref('')
@@ -200,17 +233,21 @@ const editForm = reactive({
     foodName: '',
     unit: '',
     weightGrams: 0,
-    calories: 0
+    calories: 0,
+    carbsGrams: 0,
+    sugarGrams: 0,
+    carbsSource: '',
+    sugarSource: ''
 })
 
 const foodCatalog = [
-    { id: 101, name: '米饭', kcalPer100g: 116 },
-    { id: 104, name: '馒头', kcalPer100g: 230 },
-    { id: 102, name: '鸡胸肉', kcalPer100g: 165 },
-    { id: 105, name: '鸡蛋', kcalPer100g: 143 },
-    { id: 106, name: '牛奶', kcalPer100g: 54 },
-    { id: 103, name: '西兰花', kcalPer100g: 34 },
-    { id: 107, name: '苹果', kcalPer100g: 52 }
+    { id: 101, name: '米饭', kcalPer100g: 116, carbsPer100g: 25.9, sugarPer100g: 0.1 },
+    { id: 104, name: '馒头', kcalPer100g: 230, carbsPer100g: 46.6, sugarPer100g: 1.2 },
+    { id: 102, name: '鸡胸肉', kcalPer100g: 165, carbsPer100g: 0, sugarPer100g: 0 },
+    { id: 105, name: '鸡蛋', kcalPer100g: 143, carbsPer100g: 0.7, sugarPer100g: 0.4 },
+    { id: 106, name: '牛奶', kcalPer100g: 54, carbsPer100g: 5, sugarPer100g: 5 },
+    { id: 103, name: '西兰花', kcalPer100g: 34, carbsPer100g: 6.6, sugarPer100g: 1.7 },
+    { id: 107, name: '苹果', kcalPer100g: 52, carbsPer100g: 13.8, sugarPer100g: 10.4 }
 ]
 
 const units = [
@@ -221,6 +258,14 @@ const units = [
 
 const totalCalories = computed(() => {
     return logs.value.reduce((sum, item) => sum + (Number(item.calories) || 0), 0)
+})
+
+const totalCarbs = computed(() => {
+    return logs.value.reduce((sum, item) => sum + (Number(item.carbsGrams) || 0), 0)
+})
+
+const totalSugar = computed(() => {
+    return logs.value.reduce((sum, item) => sum + (Number(item.sugarGrams) || 0), 0)
 })
 
 const groupedLogs = computed(() => {
@@ -279,6 +324,18 @@ const handleCaloriesChange = (val: number | undefined) => {
     }
 }
 
+const handleCarbsChange = (val: number | undefined) => {
+    if (val && val > 0) {
+        form.carbsSource = 'manual'
+    }
+}
+
+const handleSugarChange = (val: number | undefined) => {
+    if (val && val > 0) {
+        form.sugarSource = 'manual'
+    }
+}
+
 const submitLog = async () => {
     if (!form.foodName.trim()) {
         ElMessage.warning('请选择或输入食物名称')
@@ -292,6 +349,10 @@ const submitLog = async () => {
     const resolvedWeight = resolveWeightGrams()
     let caloriesSource = ''
     let calories = form.calories
+    let carbsGrams = form.carbsGrams
+    let sugarGrams = form.sugarGrams
+    let carbsSource = form.carbsSource
+    let sugarSource = form.sugarSource
     if (!calories && resolvedWeight && form.foodId) {
         const matched = foodCatalog.find((f) => f.id === form.foodId)
         if (matched) {
@@ -303,11 +364,37 @@ const submitLog = async () => {
         caloriesSource = 'manual'
     }
 
+    if (resolvedWeight && form.foodId) {
+        const matched = foodCatalog.find((f) => f.id === form.foodId)
+        if (matched) {
+            if (!carbsGrams && matched.carbsPer100g !== undefined) {
+                carbsGrams = Math.round((resolvedWeight * matched.carbsPer100g) / 100)
+                carbsSource = 'catalog'
+            }
+            if (!sugarGrams && matched.sugarPer100g !== undefined) {
+                sugarGrams = Math.round((resolvedWeight * matched.sugarPer100g) / 100)
+                sugarSource = 'catalog'
+            }
+        }
+    }
+
     if (!calories && resolvedWeight) {
         const aiCalories = await estimateCaloriesByAi(form.foodName, resolvedWeight)
         if (aiCalories) {
             calories = aiCalories
             caloriesSource = 'ai'
+        }
+    }
+
+    if ((!carbsGrams || !sugarGrams) && resolvedWeight) {
+        const macro = await estimateMacrosByAi(form.foodName, resolvedWeight)
+        if (!carbsGrams && macro?.carbsGrams) {
+            carbsGrams = Math.round(macro.carbsGrams)
+            carbsSource = 'ai'
+        }
+        if (!sugarGrams && macro?.sugarGrams) {
+            sugarGrams = Math.round(macro.sugarGrams)
+            sugarSource = 'ai'
         }
     }
 
@@ -320,7 +407,11 @@ const submitLog = async () => {
             foodName: form.foodName,
             weightGrams: resolvedWeight || null,
             calories: calories || null,
-            caloriesSource: caloriesSource || null
+            caloriesSource: caloriesSource || null,
+            carbsGrams: carbsGrams || null,
+            sugarGrams: sugarGrams || null,
+            carbsSource: carbsSource || null,
+            sugarSource: sugarSource || null
         })
         if (res.code === 200) {
             const portion = resolvedWeight
@@ -393,6 +484,21 @@ const estimateCaloriesByAi = async (foodName: string, weightGrams: number) => {
     return 0
 }
 
+const estimateMacrosByAi = async (foodName: string, weightGrams: number) => {
+    try {
+        const res: any = await request.post('/diet/logs/estimate-macros', {
+            foodName,
+            weightGrams
+        })
+        if (res.code === 200 && res.data) {
+            return res.data
+        }
+    } catch (e) {
+        console.error(e)
+    }
+    return null
+}
+
 const applyPreset = (preset: 'today' | '3d' | 'week' | 'month' | 'all') => {
     if (preset === 'all') {
         dateRange.value = null
@@ -438,6 +544,10 @@ const startEdit = (row: any) => {
     editForm.unit = row.unit
     editForm.weightGrams = row.weightGrams || 0
     editForm.calories = row.calories || 0
+    editForm.carbsGrams = row.carbsGrams || 0
+    editForm.sugarGrams = row.sugarGrams || 0
+    editForm.carbsSource = row.carbsSource || ''
+    editForm.sugarSource = row.sugarSource || ''
     editVisible.value = true
 }
 
@@ -450,7 +560,11 @@ const saveEdit = async () => {
             unit: editForm.unit,
             weightGrams: editForm.weightGrams || null,
             calories: editForm.calories || null,
-            caloriesSource: editForm.calories ? 'manual' : null
+            caloriesSource: editForm.calories ? 'manual' : null,
+            carbsGrams: editForm.carbsGrams || null,
+            sugarGrams: editForm.sugarGrams || null,
+            carbsSource: editForm.carbsSource || null,
+            sugarSource: editForm.sugarSource || null
         })
         if (res.code === 200) {
             ElMessage.success('更新成功')
@@ -544,6 +658,16 @@ onMounted(() => {
 }
 .log-preview {
     margin-top: 24px;
+}
+
+.source-tag {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 2px 6px;
+    font-size: 12px;
+    border-radius: 10px;
+    background: #fef3c7;
+    color: #92400e;
 }
 .filter-row {
     display: flex;

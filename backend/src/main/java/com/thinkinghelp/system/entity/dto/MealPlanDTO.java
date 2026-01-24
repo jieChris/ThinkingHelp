@@ -10,6 +10,8 @@ public class MealPlanDTO {
     private String advice;
     private List<DailyPlan> weeklyPlan;
     private Map<String, String> shoppingList; // 食材 -> 数量
+    private List<DailyShopping> dailyShopping;
+    private List<String> pantryItems;
 
     @Data
     public static class DailyPlan {
@@ -25,5 +27,11 @@ public class MealPlanDTO {
         private String name;
         private List<String> foods;
         private String calories;
+    }
+
+    @Data
+    public static class DailyShopping {
+        private String day;
+        private List<String> items;
     }
 }

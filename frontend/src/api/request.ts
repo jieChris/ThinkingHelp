@@ -47,7 +47,12 @@ service.interceptors.response.use(
                     }
                     break;
                 case 403:
-                    msg = '拒绝访问'
+                    msg = '登录已失效，请重新登录'
+                    localStorage.removeItem('token')
+                    sessionStorage.removeItem('token')
+                    if (window.location.pathname !== '/login') {
+                        window.location.href = '/login'
+                    }
                     break;
                 case 404:
                     msg = '请求资源不存在'

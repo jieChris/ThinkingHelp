@@ -51,6 +51,12 @@ const routes: Array<RouteRecordRaw> = [
                 meta: { title: '用户管理' }
             },
             {
+                path: 'admin/ai-config',
+                name: 'AdminAiConfig',
+                component: () => import('../views/admin/AiConfig.vue'),
+                meta: { title: 'AI 配置' }
+            },
+            {
                 path: 'user/profile',
                 name: 'UserProfile',
                 component: () => import('../views/user/Profile.vue'),

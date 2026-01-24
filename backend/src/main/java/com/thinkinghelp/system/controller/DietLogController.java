@@ -6,9 +6,12 @@ import com.thinkinghelp.system.entity.DietLog;
 import com.thinkinghelp.system.entity.User;
 import com.thinkinghelp.system.entity.dto.FoodCalorieEstimateRequest;
 import com.thinkinghelp.system.entity.dto.FoodCalorieEstimateResponse;
+import com.thinkinghelp.system.entity.dto.FoodMacroEstimateRequest;
+import com.thinkinghelp.system.entity.dto.FoodMacroEstimateResponse;
 import com.thinkinghelp.system.mapper.DietLogMapper;
 import com.thinkinghelp.system.mapper.UserMapper;
 import com.thinkinghelp.system.service.AIService;
+import com.thinkinghelp.system.service.AiConfigKeys;
 import com.thinkinghelp.system.utils.JwtUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -89,6 +92,18 @@ public class DietLogController {
         if (payload.getCaloriesSource() != null) {
             existing.setCaloriesSource(payload.getCaloriesSource());
         }
+        if (payload.getCarbsGrams() != null) {
+            existing.setCarbsGrams(payload.getCarbsGrams());
+        }
+        if (payload.getSugarGrams() != null) {
+            existing.setSugarGrams(payload.getSugarGrams());
+        }
+        if (payload.getCarbsSource() != null) {
+            existing.setCarbsSource(payload.getCarbsSource());
+        }
+        if (payload.getSugarSource() != null) {
+            existing.setSugarSource(payload.getSugarSource());
+        }
         dietLogMapper.updateById(existing);
         return Result.success("更新成功");
     }
@@ -123,8 +138,36 @@ public class DietLogController {
                 "要求：calories 为该份量的总热量，note 简短说明(如: AI估算，仅供参考)。";
 
         try {
-            FoodCalorieEstimateResponse response = aiService.chat(prompt, FoodCalorieEstimateResponse.class);
+            FoodCalorieEstimateResponse response = aiService.chat(prompt, FoodCalorieEstimateResponse.class, AiConfigKeys.MEAL_PLAN);
             if (response.getCalories() == null) {
+                return Result.error("AI估算失败");
+            }
+            return Result.success(response);
+        } catch (Exception e) {
+            return Result.error("AI估算失败");
+        }
+    }
+
+    @PostMapping("/estimate-macros")
+    @Operation(summary = "估算食物碳水/糖")
+    public Result<FoodMacroEstimateResponse> estimateMacros(
+            @RequestHeader("Authorization") String token,
+            @RequestBody FoodMacroEstimateRequest request) {
+        if (request.getFoodName() == null || request.getFoodName().isBlank()) {
+            return Result.error("食物名称不能为空");
+        }
+        if (request.getWeightGrams() == null || request.getWeightGrams() <= 0) {
+            return Result.error("重量必须大于0");
+        }
+
+        String prompt = "请估算以下食物的碳水和糖含量(克)，仅输出严格 JSON：{ \"carbsGrams\": number, \"sugarGrams\": number, \"note\": string }。\n" +
+                "食物：" + request.getFoodName() + "\n" +
+                "重量：" + request.getWeightGrams() + " 克\n" +
+                "要求：carbsGrams/sugarGrams 为该份量总克数，note 简短说明(如: AI估算，仅供参考)。";
+
+        try {
+            FoodMacroEstimateResponse response = aiService.chat(prompt, FoodMacroEstimateResponse.class, AiConfigKeys.MEAL_PLAN);
+            if (response.getCarbsGrams() == null && response.getSugarGrams() == null) {
                 return Result.error("AI估算失败");
             }
             return Result.success(response);

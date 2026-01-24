@@ -41,6 +41,10 @@
           <el-icon><UserFilled /></el-icon>
           <template #title>用户管理</template>
         </el-menu-item>
+        <el-menu-item index="/admin/ai-config" v-if="userStore.user?.role === 'ADMIN'">
+          <el-icon><Setting /></el-icon>
+          <template #title>AI 配置</template>
+        </el-menu-item>
       </el-menu>
     </el-aside>
     
@@ -80,10 +84,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { Fold, Expand } from '@element-plus/icons-vue'
+import { ElNotification } from 'element-plus'
+import request from '../api/request'
 
 const route = useRoute()
 const router = useRouter()
@@ -109,6 +115,76 @@ const fullAvatarUrl = (url: string) => {
     if (url.startsWith('http')) return url
     return `http://localhost:8080${url}`
 }
+
+const TASK_KEY = 'meal_plan_tasks'
+const LAST_RESULT_KEY = 'meal_plan_last_result'
+let pollTimer: number | null = null
+
+const readTasks = () => {
+    try {
+        const raw = localStorage.getItem(TASK_KEY)
+        return raw ? (JSON.parse(raw) as number[]) : []
+    } catch {
+        return []
+    }
+}
+
+const writeTasks = (tasks: number[]) => {
+    localStorage.setItem(TASK_KEY, JSON.stringify(tasks))
+}
+
+const checkMealPlanTasks = async () => {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token')
+    if (!token) return
+    const tasks = readTasks()
+    if (tasks.length === 0) return
+    const remaining: number[] = []
+    for (const id of tasks) {
+        try {
+            const res: any = await request.get(`/meal-plan/task/${id}`)
+            if (res.code === 200 && res.data) {
+                const status = res.data.status
+                if (status === 'SUCCESS') {
+                    localStorage.setItem(LAST_RESULT_KEY, JSON.stringify({
+                        taskId: id,
+                        plan: res.data.plan,
+                        rangeType: res.data.rangeType,
+                        completedAt: new Date().toISOString()
+                    }))
+                    ElNotification({
+                        title: '食谱生成完成',
+                        message: '新的食谱已生成，可前往食谱中心查看',
+                        type: 'success'
+                    })
+                } else if (status === 'FAILED') {
+                    ElNotification({
+                        title: '食谱生成失败',
+                        message: res.data.errorMessage || '请稍后再试',
+                        type: 'error'
+                    })
+                } else {
+                    remaining.push(id)
+                }
+            } else {
+                remaining.push(id)
+            }
+        } catch (e) {
+            remaining.push(id)
+        }
+    }
+    writeTasks(remaining)
+}
+
+onMounted(() => {
+    pollTimer = window.setInterval(checkMealPlanTasks, 4000)
+})
+
+onUnmounted(() => {
+    if (pollTimer) {
+        clearInterval(pollTimer)
+        pollTimer = null
+    }
+})
 </script>
 
 <style scoped lang="scss">

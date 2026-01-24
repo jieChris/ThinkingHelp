@@ -21,5 +21,9 @@ public class DietLog {
     private Double weightGrams;
     private Double calories;
     private String caloriesSource;
+    private Double carbsGrams;
+    private Double sugarGrams;
+    private String carbsSource;
+    private String sugarSource;
     private LocalDateTime recordedAt;
 }

@@ -3,6 +3,7 @@ package com.thinkinghelp.system.service.impl;
 import com.thinkinghelp.system.entity.KnowledgeBase;
 import com.thinkinghelp.system.mapper.KnowledgeBaseMapper;
 import com.thinkinghelp.system.service.AIService;
+import com.thinkinghelp.system.service.AiConfigKeys;
 import com.thinkinghelp.system.service.PromptManager;
 import com.thinkinghelp.system.service.RagService;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +28,7 @@ public class RagServiceImpl implements RagService {
         String context = retrieveContext(question);
         String fullPrompt = promptManager.buildNutritionistPrompt(question, context);
 
-        String response = aiService.chat(fullPrompt);
+        String response = aiService.chat(fullPrompt, AiConfigKeys.MEDICAL);
         return appendDisclaimerIfNeeded(response, context);
     }
 
@@ -36,7 +37,7 @@ public class RagServiceImpl implements RagService {
         String context = retrieveContext(question);
         String fullPrompt = promptManager.buildNutritionistPrompt(question, context);
 
-        Flux<String> streamResponse = aiService.streamChat(fullPrompt);
+        Flux<String> streamResponse = aiService.streamChat(fullPrompt, AiConfigKeys.MEDICAL);
 
         // 如果需要，将免责声明追加到流的末尾
         if (context.isEmpty()) {

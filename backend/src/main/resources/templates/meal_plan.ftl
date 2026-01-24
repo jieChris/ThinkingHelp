@@ -4,7 +4,7 @@
     <meta charset="UTF-8"/>
     <title>${plan.title}</title>
     <style>
-        body { font-family: sans-serif; }
+        body { font-family: 'CJK', 'SimHei', 'Microsoft YaHei', 'PingFang SC', sans-serif; }
         h1 { color: #2c3e50; text-align: center; }
         .advice { background: #ecf0f1; padding: 10px; border-radius: 5px; margin-bottom: 20px; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
@@ -53,12 +53,32 @@
     </table>
 
     <div class="shopping-list">
-        <h2>Shopping List</h2>
-        <ul>
-            <#list plan.shoppingList as ingredient, qty>
-                <li>${ingredient}: ${qty}</li>
+        <h2>每日采购清单</h2>
+        <#if plan.dailyShopping?? && (plan.dailyShopping?size > 0)>
+            <#list plan.dailyShopping as daily>
+                <h3>${daily.day}</h3>
+                <ul>
+                    <#list daily.items as item>
+                        <li>${item}</li>
+                    </#list>
+                </ul>
             </#list>
-        </ul>
+        <#else>
+            <p>暂无每日采购清单</p>
+        </#if>
+    </div>
+
+    <div class="shopping-list">
+        <h2>长期调料（建议常备）</h2>
+        <#if plan.pantryItems?? && (plan.pantryItems?size > 0)>
+            <ul>
+                <#list plan.pantryItems as item>
+                    <li>${item}</li>
+                </#list>
+            </ul>
+        <#else>
+            <p>暂无调料清单</p>
+        </#if>
     </div>
 </body>
 </html>

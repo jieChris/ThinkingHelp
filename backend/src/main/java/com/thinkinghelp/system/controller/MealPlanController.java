@@ -3,11 +3,14 @@ package com.thinkinghelp.system.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.thinkinghelp.system.common.Result;
 import com.thinkinghelp.system.entity.MealPlan;
+import com.thinkinghelp.system.entity.MealPlanTask;
 import com.thinkinghelp.system.entity.User;
 import com.thinkinghelp.system.entity.dto.MealPlanDTO;
 import com.thinkinghelp.system.entity.dto.MealPlanImportResponse;
 import com.thinkinghelp.system.entity.dto.MealPlanSaveRequest;
+import com.thinkinghelp.system.entity.dto.MealPlanTaskStatus;
 import com.thinkinghelp.system.mapper.MealPlanMapper;
+import com.thinkinghelp.system.mapper.MealPlanTaskMapper;
 import com.thinkinghelp.system.mapper.UserMapper;
 import com.thinkinghelp.system.service.ExportService;
 import com.thinkinghelp.system.utils.JwtUtils;
@@ -26,6 +29,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 @RestController
 @RequiredArgsConstructor
@@ -36,7 +41,9 @@ public class MealPlanController {
     private final UserMapper userMapper;
     private final JwtUtils jwtUtils;
     private final MealPlanMapper mealPlanMapper;
+    private final MealPlanTaskMapper mealPlanTaskMapper;
     private final ObjectMapper objectMapper;
+    private final Executor mealPlanExecutor;
 
     @GetMapping("/api/meal-plan/weekly")
     @Operation(summary = "生成一周食谱")
@@ -54,6 +61,51 @@ public class MealPlanController {
         Long userId = getUserIdFromToken(token);
         MealPlanDTO plan = exportService.generateMealPlan(userId, range, requirements);
         return Result.success(plan);
+    }
+
+    @PostMapping("/api/meal-plan/generate-async")
+    @Operation(summary = "异步生成食谱")
+    public Result<Map<String, Object>> generateAsync(@RequestHeader("Authorization") String token,
+                                                     @RequestParam(defaultValue = "WEEK") String range,
+                                                     @RequestParam(required = false) String requirements) {
+        Long userId = getUserIdFromToken(token);
+        MealPlanTask task = new MealPlanTask();
+        task.setUserId(userId);
+        task.setRangeType(range);
+        task.setRequirements(requirements);
+        task.setStatus("PENDING");
+        task.setCreatedAt(LocalDateTime.now());
+        task.setUpdatedAt(LocalDateTime.now());
+        mealPlanTaskMapper.insert(task);
+
+        Long taskId = task.getId();
+        CompletableFuture.runAsync(() -> runTask(taskId, userId, range, requirements), mealPlanExecutor);
+        Map<String, Object> data = new HashMap<>();
+        data.put("taskId", taskId);
+        return Result.success(data);
+    }
+
+    @GetMapping("/api/meal-plan/task/{id}")
+    @Operation(summary = "获取食谱生成任务状态")
+    public Result<MealPlanTaskStatus> getTaskStatus(@RequestHeader("Authorization") String token,
+                                                    @PathVariable Long id) {
+        Long userId = getUserIdFromToken(token);
+        MealPlanTask task = mealPlanTaskMapper.selectById(id);
+        if (task == null || !task.getUserId().equals(userId)) {
+            return Result.error("任务不存在");
+        }
+        MealPlanTaskStatus status = new MealPlanTaskStatus();
+        status.setId(task.getId());
+        status.setStatus(task.getStatus());
+        status.setRangeType(task.getRangeType());
+        status.setErrorMessage(task.getErrorMessage());
+        if ("SUCCESS".equalsIgnoreCase(task.getStatus()) && task.getPlanJson() != null) {
+            try {
+                status.setPlan(objectMapper.readValue(task.getPlanJson(), MealPlanDTO.class));
+            } catch (Exception ignored) {
+            }
+        }
+        return Result.success(status);
     }
 
     @PostMapping("/api/meal-plan")
@@ -193,6 +245,33 @@ public class MealPlanController {
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<User>()
                         .eq(User::getUsername, username));
         return user.getId();
+    }
+
+    private void runTask(Long taskId, Long userId, String range, String requirements) {
+        updateTask(taskId, "RUNNING", null, null);
+        try {
+            MealPlanDTO plan = exportService.generateMealPlan(userId, range, requirements);
+            String planJson = objectMapper.writeValueAsString(plan);
+            updateTask(taskId, "SUCCESS", planJson, null);
+        } catch (Exception e) {
+            updateTask(taskId, "FAILED", null, e.getMessage());
+        }
+    }
+
+    private void updateTask(Long taskId, String status, String planJson, String errorMessage) {
+        LocalDateTime now = LocalDateTime.now();
+        com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<MealPlanTask> wrapper =
+                new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<>();
+        wrapper.eq(MealPlanTask::getId, taskId)
+                .set(MealPlanTask::getStatus, status)
+                .set(MealPlanTask::getUpdatedAt, now);
+        if (planJson != null) {
+            wrapper.set(MealPlanTask::getPlanJson, planJson);
+        }
+        if (errorMessage != null) {
+            wrapper.set(MealPlanTask::getErrorMessage, errorMessage);
+        }
+        mealPlanTaskMapper.update(null, wrapper);
     }
 
     private ParsedPlan parseExcel(MultipartFile file) throws IOException {

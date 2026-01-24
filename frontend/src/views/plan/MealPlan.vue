@@ -40,8 +40,8 @@
                     <el-radio-button label="THREE_DAYS">三天</el-radio-button>
                     <el-radio-button label="WEEK">一周</el-radio-button>
                 </el-radio-group>
-                <el-button type="primary" size="large" @click="generatePlan" :loading="loading" class="generate-btn">
-                    生成推荐食谱
+                <el-button type="primary" size="large" @click="generatePlan" :loading="loading || generating" class="generate-btn">
+                    {{ generating ? '生成中...' : '生成推荐食谱' }}
                 </el-button>
                 <el-button v-if="generatedPlan" type="success" size="large" @click="savePlan" icon="Document">
                     保存到食谱中心
@@ -89,12 +89,28 @@
             </el-table>
             
             <div class="shopping-list">
-                <h4><el-icon><ShoppingCart /></el-icon> 采购清单</h4>
-                <div class="tags-container">
-                    <el-tag v-for="([item, qty]) in shoppingEntries" :key="item" size="large" effect="plain" class="shop-tag">
-                        {{ item }}: <strong>{{ qty }}</strong>
+                <h4><el-icon><ShoppingCart /></el-icon> 每日采购清单</h4>
+                <div v-if="dailyShopping.length" class="daily-shopping">
+                    <div v-for="daily in dailyShopping" :key="daily.day" class="daily-block">
+                        <div class="daily-title">{{ daily.day }}</div>
+                        <div class="tags-container">
+                            <el-tag v-for="item in daily.items" :key="item" size="large" effect="plain" class="shop-tag">
+                                {{ item }}
+                            </el-tag>
+                        </div>
+                    </div>
+                </div>
+                <div v-else class="empty-note">暂无每日采购清单</div>
+            </div>
+
+            <div class="shopping-list pantry">
+                <h4><el-icon><ShoppingCart /></el-icon> 长期调料（常备）</h4>
+                <div class="tags-container" v-if="pantryItems.length">
+                    <el-tag v-for="item in pantryItems" :key="item" size="large" effect="plain" class="shop-tag">
+                        {{ item }}
                     </el-tag>
                 </div>
+                <div v-else class="empty-note">暂无调料清单</div>
             </div>
         </div>
     </el-card>
@@ -130,7 +146,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import dayjs from 'dayjs'
 import request from '../../api/request'
@@ -142,11 +158,25 @@ const savedPlans = ref<any[]>([])
 const requirements = ref('')
 const importTitle = ref('')
 const importing = ref(false)
+const generating = ref(false)
+const pendingTaskId = ref<number | null>(null)
+const pollTimer = ref<number | null>(null)
+
+const TASK_KEY = 'meal_plan_tasks'
 
 const planRows = computed(() => generatedPlan.value?.weeklyPlan || [])
-const shoppingEntries = computed(() => {
-    const list = generatedPlan.value?.shoppingList || {}
-    return Object.entries(list)
+const dailyShopping = computed(() => {
+    if (generatedPlan.value?.dailyShopping?.length) {
+        return generatedPlan.value.dailyShopping
+    }
+    return buildDailyShoppingFromPlan(generatedPlan.value)
+})
+
+const pantryItems = computed(() => {
+    if (generatedPlan.value?.pantryItems?.length) {
+        return generatedPlan.value.pantryItems
+    }
+    return buildPantryFromPlan(generatedPlan.value)
 })
 
 const generatePlan = async () => {
@@ -156,9 +186,16 @@ const generatePlan = async () => {
         if (requirements.value.trim()) {
             params.requirements = requirements.value.trim()
         }
-        const res: any = await request.get('/meal-plan/generate', { params })
+        const res: any = await request.post('/meal-plan/generate-async', null, { params })
         if (res.code === 200) {
-            generatedPlan.value = res.data
+            const taskId = res.data?.taskId
+            if (taskId) {
+                pendingTaskId.value = taskId
+                generating.value = true
+                addTask(taskId)
+                startPolling(taskId)
+                ElMessage.success('已开始生成，完成后会提醒')
+            }
         } else {
             ElMessage.error(res.msg || '生成失败')
         }
@@ -303,6 +340,58 @@ const mealCalories = (meal: any) => {
     return `${meal.calories}`
 }
 
+const buildDailyShoppingFromPlan = (plan: any) => {
+    const result: { day: string; items: string[] }[] = []
+    if (!plan?.weeklyPlan) return result
+    const pantrySet = new Set(buildPantryFromPlan(plan))
+    plan.weeklyPlan.forEach((day: any) => {
+        const itemsSet = new Set<string>()
+        const dayLabel = day?.day || '当天'
+        ;['breakfast', 'lunch', 'dinner', 'snack'].forEach((key) => {
+            const meal = day?.[key]
+            const foods = normalizeFoods(meal)
+            foods.forEach((food) => {
+                if (!pantrySet.has(food)) {
+                    itemsSet.add(food)
+                }
+            })
+        })
+        result.push({ day: dayLabel, items: Array.from(itemsSet) })
+    })
+    return result
+}
+
+const buildPantryFromPlan = (plan: any) => {
+    const pantry = new Set<string>()
+    if (!plan?.weeklyPlan) return []
+    plan.weeklyPlan.forEach((day: any) => {
+        ;['breakfast', 'lunch', 'dinner', 'snack'].forEach((key) => {
+            const meal = day?.[key]
+            const foods = normalizeFoods(meal)
+            foods.forEach((food) => {
+                if (isPantryItem(food)) {
+                    pantry.add(food)
+                }
+            })
+        })
+    })
+    return Array.from(pantry)
+}
+
+const normalizeFoods = (meal: any) => {
+    if (!meal) return []
+    let foods: string[] = Array.isArray(meal.foods) ? meal.foods : []
+    if (!foods.length && meal.name) {
+        foods = String(meal.name).split(/[、,，;+|/]/).map((v: string) => v.trim()).filter(Boolean)
+    }
+    return foods.map((item) => item.replace(/\s+/g, '').replace(/（.*?）/g, '').replace(/\(.*?\)/g, ''))
+}
+
+const isPantryItem = (name: string) => {
+    const pantryKeywords = ['盐', '酱油', '生抽', '老抽', '醋', '糖', '味精', '鸡精', '胡椒', '花椒', '辣椒', '辣椒粉', '孜然', '香油', '芝麻油', '食用油', '油', '料酒', '蚝油', '豆瓣酱', '黄豆酱', '葱', '姜', '蒜', '八角', '香叶', '桂皮']
+    return pantryKeywords.some((keyword) => name.includes(keyword))
+}
+
 const formatDate = (val: string) => {
     if (!val) return '--'
     return dayjs(val).format('YYYY-MM-DD HH:mm')
@@ -311,6 +400,70 @@ const formatDate = (val: string) => {
 onMounted(() => {
     fetchSavedPlans()
 })
+
+onUnmounted(() => {
+    stopPolling()
+})
+
+const readTasks = () => {
+    try {
+        const raw = localStorage.getItem(TASK_KEY)
+        return raw ? (JSON.parse(raw) as number[]) : []
+    } catch {
+        return []
+    }
+}
+
+const writeTasks = (tasks: number[]) => {
+    localStorage.setItem(TASK_KEY, JSON.stringify(tasks))
+}
+
+const addTask = (id: number) => {
+    const tasks = readTasks()
+    if (!tasks.includes(id)) {
+        tasks.push(id)
+        writeTasks(tasks)
+    }
+}
+
+const removeTask = (id: number) => {
+    const tasks = readTasks().filter((task) => task !== id)
+    writeTasks(tasks)
+}
+
+const startPolling = (id: number) => {
+    stopPolling()
+    pollTimer.value = window.setInterval(async () => {
+        try {
+            const res: any = await request.get(`/meal-plan/task/${id}`)
+            if (res.code !== 200 || !res.data) return
+            const status = res.data.status
+            if (status === 'SUCCESS') {
+                generatedPlan.value = res.data.plan
+                generating.value = false
+                pendingTaskId.value = null
+                removeTask(id)
+                stopPolling()
+                ElMessage.success('食谱已生成')
+            } else if (status === 'FAILED') {
+                generating.value = false
+                pendingTaskId.value = null
+                removeTask(id)
+                stopPolling()
+                ElMessage.error(res.data.errorMessage || '生成失败')
+            }
+        } catch (e) {
+            console.error(e)
+        }
+    }, 3000)
+}
+
+const stopPolling = () => {
+    if (pollTimer.value) {
+        clearInterval(pollTimer.value)
+        pollTimer.value = null
+    }
+}
 </script>
 
 <style scoped lang="scss">
@@ -418,6 +571,35 @@ onMounted(() => {
             background-color: #fff;
         }
     }
+}
+
+.daily-shopping {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.daily-block {
+    background: #ffffff;
+    border-radius: 10px;
+    padding: 12px;
+    border: 1px dashed #cbd5f5;
+}
+
+.daily-title {
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #1f2937;
+}
+
+.pantry {
+    background: #fff7ed;
+    border-color: #fed7aa;
+}
+
+.empty-note {
+    color: #6b7280;
+    font-size: 13px;
 }
 
 .saved-card {

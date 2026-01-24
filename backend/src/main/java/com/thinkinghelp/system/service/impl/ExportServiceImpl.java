@@ -9,6 +9,7 @@ import com.thinkinghelp.system.entity.dto.MealPlanDTO;
 import com.thinkinghelp.system.mapper.HealthProfileMapper;
 import com.thinkinghelp.system.mapper.KnowledgeBaseMapper;
 import com.thinkinghelp.system.service.AIService;
+import com.thinkinghelp.system.service.AiConfigKeys;
 import com.thinkinghelp.system.service.ExportService;
 import com.thinkinghelp.system.service.PromptManager;
 import freemarker.template.Configuration;
@@ -18,6 +19,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.io.OutputStream;
+import java.io.InputStream;
+import java.io.File;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -27,6 +30,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.LinkedHashMap;
 
 @Slf4j
 @Service
@@ -71,7 +75,9 @@ public class ExportServiceImpl implements ExportService {
                 .append("{ title, advice, weeklyPlan: [{ day, breakfast: {name, foods:[], calories}, lunch: {name, foods:[], calories}, dinner: {name, foods:[], calories} }], shoppingList: { ingredient: quantity } }");
 
         try {
-            return aiService.chat(prompt.toString(), MealPlanDTO.class);
+            MealPlanDTO plan = aiService.chat(prompt.toString(), MealPlanDTO.class, AiConfigKeys.MEAL_PLAN);
+            augmentShoppingLists(plan);
+            return plan;
         } catch (Exception e) {
             log.warn("AI meal plan generation failed, using fallback plan", e);
             return buildFallbackMealPlan(range);
@@ -91,6 +97,7 @@ public class ExportServiceImpl implements ExportService {
 
             PdfRendererBuilder builder = new PdfRendererBuilder();
             builder.useFastMode();
+            registerFonts(builder);
             builder.withHtmlContent(htmlContent, null);
             builder.toStream(outputStream);
             builder.run();
@@ -151,6 +158,7 @@ public class ExportServiceImpl implements ExportService {
         shopping.put("鱼肉", "800g");
         plan.setShoppingList(shopping);
 
+        augmentShoppingLists(plan);
         return plan;
     }
 
@@ -166,6 +174,44 @@ public class ExportServiceImpl implements ExportService {
             case "WEEK":
             default:
                 return "一周";
+        }
+    }
+
+    private void registerFonts(PdfRendererBuilder builder) {
+        String[] classpathFonts = {
+                "fonts/阿里妈妈方圆体.ttf",
+                "fonts/SourceHanSansCN-Regular.otf",
+                "fonts/NotoSansCJKsc-Regular.otf",
+                "fonts/SourceHanSansSC-Regular.otf",
+                "fonts/SimHei.ttf"
+        };
+        for (String fontPath : classpathFonts) {
+            try {
+                InputStream stream = Thread.currentThread().getContextClassLoader().getResourceAsStream(fontPath);
+                if (stream != null) {
+                    builder.useFont(() -> stream, "CJK");
+                    return;
+                }
+            } catch (Exception ignored) {
+            }
+        }
+
+        String[] systemFonts = {
+                "C:\\\\Windows\\\\Fonts\\\\simhei.ttf",
+                "C:\\\\Windows\\\\Fonts\\\\simsun.ttf",
+                "C:\\\\Windows\\\\Fonts\\\\msyh.ttf",
+                "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+                "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.otf"
+        };
+        for (String fontPath : systemFonts) {
+            try {
+                File fontFile = new File(fontPath);
+                if (fontFile.exists()) {
+                    builder.useFont(fontFile, "CJK");
+                    return;
+                }
+            } catch (Exception ignored) {
+            }
         }
     }
 
@@ -254,5 +300,85 @@ public class ExportServiceImpl implements ExportService {
             return "";
         }
         return String.join(" | ", snippets);
+    }
+
+    private void augmentShoppingLists(MealPlanDTO plan) {
+        if (plan == null || plan.getWeeklyPlan() == null) {
+            return;
+        }
+        if (plan.getDailyShopping() != null && plan.getPantryItems() != null) {
+            return;
+        }
+        Set<String> pantry = new LinkedHashSet<>();
+        Map<String, Set<String>> dayMap = new LinkedHashMap<>();
+        for (MealPlanDTO.DailyPlan day : plan.getWeeklyPlan()) {
+            if (day == null) continue;
+            String dayLabel = day.getDay() == null ? "当天" : day.getDay();
+            Set<String> items = dayMap.computeIfAbsent(dayLabel, key -> new LinkedHashSet<>());
+            collectFoods(day.getBreakfast(), items, pantry);
+            collectFoods(day.getLunch(), items, pantry);
+            collectFoods(day.getDinner(), items, pantry);
+            collectFoods(day.getSnack(), items, pantry);
+        }
+        List<MealPlanDTO.DailyShopping> dailyList = new ArrayList<>();
+        for (Map.Entry<String, Set<String>> entry : dayMap.entrySet()) {
+            MealPlanDTO.DailyShopping daily = new MealPlanDTO.DailyShopping();
+            daily.setDay(entry.getKey());
+            daily.setItems(new ArrayList<>(entry.getValue()));
+            dailyList.add(daily);
+        }
+        plan.setDailyShopping(dailyList);
+        plan.setPantryItems(new ArrayList<>(pantry));
+    }
+
+    private void collectFoods(MealPlanDTO.Meal meal, Set<String> items, Set<String> pantry) {
+        if (meal == null) return;
+        List<String> foods = meal.getFoods();
+        if (foods == null || foods.isEmpty()) {
+            foods = splitFoodsFromName(meal.getName());
+        }
+        if (foods == null) return;
+        for (String raw : foods) {
+            String name = normalizeFoodName(raw);
+            if (name.isBlank()) continue;
+            if (isPantryItem(name)) {
+                pantry.add(name);
+            } else {
+                items.add(name);
+            }
+        }
+    }
+
+    private List<String> splitFoodsFromName(String name) {
+        if (name == null || name.isBlank()) return Collections.emptyList();
+        String[] parts = name.split("[、,，;+|/]");
+        List<String> list = new ArrayList<>();
+        for (String part : parts) {
+            String trimmed = part.trim();
+            if (!trimmed.isEmpty()) {
+                list.add(trimmed);
+            }
+        }
+        return list;
+    }
+
+    private String normalizeFoodName(String name) {
+        if (name == null) return "";
+        return name.replaceAll("\\s+", "").replaceAll("（.*?）", "").replaceAll("\\(.*?\\)", "");
+    }
+
+    private boolean isPantryItem(String name) {
+        String[] pantryKeywords = {
+                "盐", "酱油", "生抽", "老抽", "醋", "糖", "味精", "鸡精",
+                "胡椒", "花椒", "辣椒", "辣椒粉", "孜然", "香油", "芝麻油",
+                "食用油", "油", "料酒", "蚝油", "豆瓣酱", "黄豆酱",
+                "葱", "姜", "蒜", "八角", "香叶", "桂皮"
+        };
+        for (String keyword : pantryKeywords) {
+            if (name.contains(keyword)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
