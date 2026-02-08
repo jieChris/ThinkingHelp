@@ -25,6 +25,7 @@ public class UserSettingsController {
     private final UserSettingsMapper settingsMapper;
     private final UserMapper userMapper;
     private final JwtUtils jwtUtils;
+    private static final String DEFAULT_DASHBOARD_CARDS = "[\"bmi\",\"bp\",\"meal\",\"record\",\"glucoseAvg\",\"pendingTasks\",\"profileCompletion\"]";
 
     @GetMapping("/settings")
     @Operation(summary = "获取用户设置")
@@ -38,8 +39,12 @@ public class UserSettingsController {
                     .setFontSize(0)
                     .setTheme("light")
                     .setAiPersona("gentle")
-                    .setNotificationEnabled(true);
+                    .setNotificationEnabled(true)
+                    .setDashboardCards(DEFAULT_DASHBOARD_CARDS);
             settingsMapper.insert(settings);
+        } else if (settings.getDashboardCards() == null || settings.getDashboardCards().isBlank()) {
+            settings.setDashboardCards(DEFAULT_DASHBOARD_CARDS);
+            settingsMapper.updateById(settings);
         }
         return Result.success(settings);
     }
@@ -50,6 +55,9 @@ public class UserSettingsController {
             @RequestBody UserSettings settings) {
         Long userId = getUserIdFromToken(token);
         settings.setUserId(userId);
+        if (settings.getDashboardCards() == null || settings.getDashboardCards().isBlank()) {
+            settings.setDashboardCards(DEFAULT_DASHBOARD_CARDS);
+        }
 
         if (settingsMapper.exists(new LambdaQueryWrapper<UserSettings>().eq(UserSettings::getUserId, userId))) {
             settingsMapper.updateById(settings);

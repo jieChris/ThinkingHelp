@@ -55,6 +55,22 @@
                         </el-radio-group>
                         <p class="hint">严谨模式下 AI 将更注重医学数据的准确性；温柔模式下 AI 将提供更多情感支持。</p>
                     </el-form-item>
+
+                    <el-divider />
+
+                    <h3>首页卡片展示</h3>
+                    <el-form-item label="可选卡片">
+                        <el-checkbox-group v-model="settings.dashboardCards" @change="saveSettings">
+                            <el-checkbox
+                                v-for="item in dashboardCardOptions"
+                                :key="item.key"
+                                :label="item.key"
+                            >
+                                {{ item.label }}
+                            </el-checkbox>
+                        </el-checkbox-group>
+                        <p class="hint">固定展示：一周健康趋势、今日餐次热量结构（不可移除）。</p>
+                    </el-form-item>
                 </el-form>
              </div>
         </el-tab-pane>
@@ -108,6 +124,16 @@ const router = useRouter()
 const settings = computed(() => userStore.settings)
 const medicationReminder = ref(localStorage.getItem('medicationReminder') === 'true')
 const tabPosition = ref<'left' | 'top'>('left')
+const defaultDashboardCards = ['bmi', 'bp', 'meal', 'record', 'glucoseAvg', 'pendingTasks', 'profileCompletion']
+const dashboardCardOptions = [
+    { key: 'bmi', label: 'BMI 指数' },
+    { key: 'bp', label: '最近血压' },
+    { key: 'meal', label: '今日餐次记录' },
+    { key: 'record', label: '今日健康记录' },
+    { key: 'glucoseAvg', label: '本周平均血糖' },
+    { key: 'pendingTasks', label: '待处理控糖任务' },
+    { key: 'profileCompletion', label: '健康档案完整度' }
+]
 
 const previewSize = computed(() => {
     const sizes = [14, 17.5, 21] // 14px * 1.0, 1.25, 1.5
@@ -128,7 +154,11 @@ const saveSettings = async () => {
 
 const saveSettingsToServer = async () => {
     try {
-        await request.put('/user/settings', { ...settings.value })
+        const payload = {
+            ...settings.value,
+            dashboardCards: JSON.stringify(settings.value.dashboardCards || defaultDashboardCards)
+        }
+        await request.put('/user/settings', payload)
     } catch (e) {
         console.error(e)
     }
@@ -182,11 +212,32 @@ const loadSettings = async () => {
     try {
         const res: any = await request.get('/user/settings')
         if (res.code === 200 && res.data) {
-            userStore.updateSettings(res.data)
+            const serverData = { ...res.data }
+            serverData.dashboardCards = normalizeDashboardCards(serverData.dashboardCards)
+            userStore.updateSettings(serverData)
         }
     } catch (e) {
         console.error(e)
     }
+}
+
+const normalizeDashboardCards = (raw: unknown): string[] => {
+    if (Array.isArray(raw)) {
+        const list = raw.filter((item) => typeof item === 'string') as string[]
+        return list.length > 0 ? list : [...defaultDashboardCards]
+    }
+    if (typeof raw === 'string') {
+        try {
+            const parsed = JSON.parse(raw)
+            if (Array.isArray(parsed)) {
+                const list = parsed.filter((item) => typeof item === 'string') as string[]
+                return list.length > 0 ? list : [...defaultDashboardCards]
+            }
+        } catch (e) {
+            console.warn('parse dashboardCards failed', e)
+        }
+    }
+    return [...defaultDashboardCards]
 }
 
 const syncMedicationReminder = () => {

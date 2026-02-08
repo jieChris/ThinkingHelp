@@ -6,6 +6,26 @@ const service = axios.create({
     timeout: 5000
 })
 
+let logoutRedirecting = false
+
+const forceLogout = (message: string) => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    sessionStorage.removeItem('token')
+    sessionStorage.removeItem('user')
+    if (!logoutRedirecting) {
+        logoutRedirecting = true
+        ElMessage.error(message)
+        if (window.location.pathname !== '/login') {
+            window.location.href = '/login'
+        } else {
+            setTimeout(() => {
+                logoutRedirecting = false
+            }, 1000)
+        }
+    }
+}
+
 // Request interceptor
 service.interceptors.request.use(
     (config) => {
@@ -27,6 +47,10 @@ service.interceptors.response.use(
         // Backend returns Result<T> with code/message/data
         if (res.code && res.code !== 200) {
             const errorMessage = res.message || res.msg || 'Error'
+            if (res.code === 500) {
+                forceLogout('服务器内部错误，已自动退出，请重新登录')
+                return Promise.reject(new Error(errorMessage))
+            }
             ElMessage.error(errorMessage)
             return Promise.reject(new Error(errorMessage))
         }
@@ -38,28 +62,20 @@ service.interceptors.response.use(
         if (error.response) {
             switch (error.response.status) {
                 case 401:
-                    msg = '未授权，请重新登录'
-                    // specific logic to redirect to login could go here
-                    localStorage.removeItem('token')
-                    sessionStorage.removeItem('token')
-                    if (window.location.pathname !== '/login') {
-                        window.location.href = '/login'
-                    }
-                    break;
+                    forceLogout('未授权，请重新登录')
+                    return Promise.reject(error)
                 case 403:
-                    msg = '登录已失效，请重新登录'
-                    localStorage.removeItem('token')
-                    sessionStorage.removeItem('token')
-                    if (window.location.pathname !== '/login') {
-                        window.location.href = '/login'
-                    }
-                    break;
+                    forceLogout('登录已失效，请重新登录')
+                    return Promise.reject(error)
                 case 404:
                     msg = '请求资源不存在'
                     break;
                 case 500:
-                    msg = '服务器内部错误'
-                    break;
+                case 502:
+                case 503:
+                case 504:
+                    forceLogout('服务器异常，已自动退出，请重新登录')
+                    return Promise.reject(error)
             }
         }
         ElMessage.error(msg)

@@ -7,10 +7,10 @@ public interface RagService {
     /**
      * RAG 支持的问答 (标准响应)
      */
-    String ask(String question);
+    String ask(Long userId, String question);
 
     /**
      * RAG 支持的问答 (流式响应)
      */
-    Flux<String> streamAsk(String question);
+    Flux<String> streamAsk(Long userId, String question);
 }

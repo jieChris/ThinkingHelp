@@ -6,12 +6,15 @@ interface UserSettings {
     theme: 'light' | 'dark'
     aiPersona: 'strict' | 'gentle'
     notificationEnabled: boolean
+    dashboardCards: string[]
 }
 
 // Match backend User entity
 interface User {
     id: number
     username: string
+    nickname?: string
+    gender?: number | string
     avatar?: string
     role?: string
     memberLevel?: number // 0 or 1
@@ -32,7 +35,8 @@ export const useUserStore = defineStore('user', () => {
         fontSize: 0,
         theme: 'light',
         aiPersona: 'gentle',
-        notificationEnabled: true
+        notificationEnabled: true,
+        dashboardCards: ['bmi', 'bp', 'meal', 'record', 'glucoseAvg', 'pendingTasks', 'profileCompletion']
     })
 
     const isLoggedIn = computed(() => !!token.value)

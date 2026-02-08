@@ -25,6 +25,11 @@ public interface ExportService {
     MealPlanDTO generateMealPlan(Long userId, String range, String requirements);
 
     /**
+     * 对已存在食谱补齐营养与采购清单信息（不触发 AI 估算）
+     */
+    void enrichMealPlan(MealPlanDTO mealPlan);
+
+    /**
      * 将食谱导出为 PDF
      */
     void exportMealPlanToPdf(MealPlanDTO mealPlan, OutputStream outputStream);

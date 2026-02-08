@@ -79,6 +79,26 @@ SET @sql := IF(@exist = 0, 'ALTER TABLE health_profiles ADD COLUMN bp_systolic D
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
 
+SET @exist := (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'thinking_help' AND table_name = 'health_profiles' AND column_name = 'activity_level');
+SET @sql := IF(@exist = 0, 'ALTER TABLE health_profiles ADD COLUMN activity_level VARCHAR(20)', 'SELECT \"Column activity_level already exists\"');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+
+SET @exist := (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'thinking_help' AND table_name = 'health_profiles' AND column_name = 'goal');
+SET @sql := IF(@exist = 0, 'ALTER TABLE health_profiles ADD COLUMN goal VARCHAR(20)', 'SELECT \"Column goal already exists\"');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+
+SET @exist := (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'thinking_help' AND table_name = 'health_profiles' AND column_name = 'exercise_frequency');
+SET @sql := IF(@exist = 0, 'ALTER TABLE health_profiles ADD COLUMN exercise_frequency INT', 'SELECT \"Column exercise_frequency already exists\"');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+
+SET @exist := (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'thinking_help' AND table_name = 'health_profiles' AND column_name = 'exercise_duration');
+SET @sql := IF(@exist = 0, 'ALTER TABLE health_profiles ADD COLUMN exercise_duration INT', 'SELECT \"Column exercise_duration already exists\"');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+
 SET @exist := (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'thinking_help' AND table_name = 'health_profiles' AND column_name = 'bp_diastolic');
 SET @sql := IF(@exist = 0, 'ALTER TABLE health_profiles ADD COLUMN bp_diastolic DOUBLE', 'SELECT \"Column bp_diastolic already exists\"');
 PREPARE stmt FROM @sql;
@@ -176,6 +196,16 @@ CREATE TABLE IF NOT EXISTS meal_plan_tasks (
     updated_at DATETIME
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Patch 15: Create meal plan feedback table
+CREATE TABLE IF NOT EXISTS meal_plan_feedback (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    meal_type VARCHAR(20),
+    direction VARCHAR(20),
+    note VARCHAR(200),
+    created_at DATETIME
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- Patch 7: Rename legacy table names if present
 SET @exist_old := (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'thinking_help' AND table_name = 'health_profile');
 SET @exist_new := (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'thinking_help' AND table_name = 'health_profiles');
@@ -252,5 +282,67 @@ EXECUTE stmt;
 
 SET @exist := (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'thinking_help' AND table_name = 'diet_logs' AND column_name = 'calories_source');
 SET @sql := IF(@exist = 0, 'ALTER TABLE diet_logs ADD COLUMN calories_source VARCHAR(30)', 'SELECT "Column calories_source already exists"');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+
+-- Patch 16: Create glucose records table
+CREATE TABLE IF NOT EXISTS glucose_records (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    glucose_value DOUBLE NOT NULL,
+    measure_type VARCHAR(30) NOT NULL,
+    event_type VARCHAR(20),
+    medication_note VARCHAR(255),
+    symptoms VARCHAR(255),
+    related_meal VARCHAR(255),
+    recorded_at DATETIME,
+    created_at DATETIME,
+    KEY idx_glucose_user_time (user_id, recorded_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Patch 17: Create glucose follow-up tasks table
+CREATE TABLE IF NOT EXISTS glucose_followup_tasks (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    task_type VARCHAR(30) NOT NULL,
+    title VARCHAR(120) NOT NULL,
+    note VARCHAR(255),
+    status VARCHAR(20) NOT NULL,
+    due_at DATETIME,
+    completed_at DATETIME,
+    created_at DATETIME,
+    KEY idx_glucose_task_user_status (user_id, status, due_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Patch 18: Create food nutrition cache table (AI estimate cache)
+CREATE TABLE IF NOT EXISTS food_nutrition_cache (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    normalized_name VARCHAR(128) NOT NULL,
+    display_name VARCHAR(128),
+    calories_per_100g DOUBLE,
+    carbs_per_100g DOUBLE,
+    sugar_per_100g DOUBLE,
+    data_source VARCHAR(20),
+    created_at DATETIME,
+    updated_at DATETIME,
+    UNIQUE KEY uk_food_nutrition_cache_name (normalized_name),
+    KEY idx_food_nutrition_cache_updated (updated_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Patch 19: Ensure user_settings exists and has dashboard_cards
+CREATE TABLE IF NOT EXISTS user_settings (
+    user_id BIGINT NOT NULL PRIMARY KEY,
+    font_size INT DEFAULT 0,
+    theme VARCHAR(20) DEFAULT 'light',
+    ai_persona VARCHAR(20) DEFAULT 'gentle',
+    notification_enabled BOOLEAN DEFAULT TRUE,
+    dashboard_cards VARCHAR(500) DEFAULT '[\"bmi\",\"bp\",\"meal\",\"record\",\"glucoseAvg\",\"pendingTasks\",\"profileCompletion\"]',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+SET @exist := (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'thinking_help' AND table_name = 'user_settings' AND column_name = 'dashboard_cards');
+SET @sql := IF(@exist = 0,
+    'ALTER TABLE user_settings ADD COLUMN dashboard_cards VARCHAR(500) DEFAULT ''[\"bmi\",\"bp\",\"meal\",\"record\",\"glucoseAvg\",\"pendingTasks\",\"profileCompletion\"]''',
+    'SELECT \"Column dashboard_cards already exists\"');
 PREPARE stmt FROM @sql;
 EXECUTE stmt;

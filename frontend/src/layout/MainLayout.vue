@@ -210,7 +210,6 @@ onUnmounted(() => {
       border-bottom: 1px solid #f0f0f0;
       
       .logo-icon {
-        margin-right: 8px;
         font-size: 24px;
       }
     }

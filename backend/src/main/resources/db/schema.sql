@@ -65,6 +65,21 @@ CREATE TABLE IF NOT EXISTS `food_nutrition` (
     PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='食物营养数据库';
 
+-- 食物营养缓存表（用户自定义食物AI估算缓存）
+CREATE TABLE IF NOT EXISTS `food_nutrition_cache` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT,
+    `normalized_name` VARCHAR(128) NOT NULL COMMENT '规范化名称(唯一键)',
+    `display_name` VARCHAR(128) COMMENT '展示名称',
+    `calories_per_100g` DOUBLE COMMENT '每100克热量',
+    `carbs_per_100g` DOUBLE COMMENT '每100克碳水',
+    `sugar_per_100g` DOUBLE COMMENT '每100克糖',
+    `data_source` VARCHAR(20) DEFAULT 'ai' COMMENT '数据来源',
+    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_food_nutrition_cache_name` (`normalized_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='自定义食物营养估算缓存';
+
 -- 本地知识库 (RAG)
 CREATE TABLE IF NOT EXISTS `knowledge_base` (
     `id` BIGINT NOT NULL AUTO_INCREMENT,
@@ -103,6 +118,7 @@ CREATE TABLE IF NOT EXISTS `user_settings` (
     `theme` VARCHAR(20) DEFAULT 'light' COMMENT '主题 (light/dark)',
     `ai_persona` VARCHAR(20) DEFAULT 'gentle' COMMENT 'AI性格 (strict/gentle)',
     `notification_enabled` BOOLEAN DEFAULT TRUE COMMENT '是否开启通知',
+    `dashboard_cards` VARCHAR(500) DEFAULT '[\"bmi\",\"bp\",\"meal\",\"record\",\"glucoseAvg\",\"pendingTasks\",\"profileCompletion\"]' COMMENT '首页卡片配置(JSON数组)',
     `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户偏好设置表';

@@ -27,6 +27,8 @@ public class HealthRecordController {
         if (record.getUserId() == null) {
             return Result.error("缺少用户ID");
         }
+        // 血糖统一归口到 /health/glucose-records，避免双入口数据冲突
+        record.setGlucose(null);
         if (record.getRecordedAt() == null) {
             record.setRecordedAt(LocalDateTime.now());
         }

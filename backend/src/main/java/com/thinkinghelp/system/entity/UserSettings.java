@@ -24,6 +24,9 @@ public class UserSettings {
     private String aiPersona;
 
     private Boolean notificationEnabled;
+    
+    // 首页可展示卡片配置(JSON数组字符串)
+    private String dashboardCards;
 
     private LocalDateTime updatedAt;
 }

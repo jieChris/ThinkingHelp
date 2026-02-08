@@ -1,7 +1,6 @@
 package com.thinkinghelp.system.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
@@ -9,20 +8,16 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
-@TableName("meal_plans")
-public class MealPlan {
+@TableName("glucose_followup_tasks")
+public class GlucoseFollowupTask {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Long userId;
-    private String rangeType;
+    private String taskType;
     private String title;
-    private String advice;
-    private String planJson;
+    private String note;
+    private String status;
+    private LocalDateTime dueAt;
+    private LocalDateTime completedAt;
     private LocalDateTime createdAt;
-
-    @TableField(exist = false)
-    private Boolean hasAdjustment;
-
-    @TableField(exist = false)
-    private String adjustmentSummary;
 }

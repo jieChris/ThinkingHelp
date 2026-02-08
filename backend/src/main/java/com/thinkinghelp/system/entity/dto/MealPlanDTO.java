@@ -12,6 +12,11 @@ public class MealPlanDTO {
     private Map<String, String> shoppingList; // 食材 -> 数量
     private List<DailyShopping> dailyShopping;
     private List<String> pantryItems;
+    private Double targetCalories;
+    private Double targetCarbs;
+    private Double targetProtein;
+    private Double targetFat;
+    private List<String> adjustmentNotes;
 
     @Data
     public static class DailyPlan {
@@ -27,11 +32,26 @@ public class MealPlanDTO {
         private String name;
         private List<String> foods;
         private String calories;
+        private Double caloriesKcal;
+        private Double carbsGrams;
+        private Double proteinGrams;
+        private Double fatGrams;
+        private List<Ingredient> ingredients;
     }
 
     @Data
     public static class DailyShopping {
         private String day;
         private List<String> items;
+    }
+
+    @Data
+    public static class Ingredient {
+        private String name;
+        private Double grams;
+        private Double caloriesKcal;
+        private Double carbsGrams;
+        private Double proteinGrams;
+        private Double fatGrams;
     }
 }

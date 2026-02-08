@@ -13,6 +13,10 @@ public class HealthProfileDTO {
     private Double weight;
     private String bmi;
     private String reportDate;
+    private String activityLevel;
+    private String goal;
+    private Integer exerciseFrequency;
+    private Integer exerciseDuration;
     private Double bpSystolic;
     private Double bpDiastolic;
     private Double fastingGlucose;

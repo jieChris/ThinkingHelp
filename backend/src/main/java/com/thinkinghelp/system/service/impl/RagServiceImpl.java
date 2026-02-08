@@ -1,6 +1,11 @@
 package com.thinkinghelp.system.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.thinkinghelp.system.entity.HealthProfile;
 import com.thinkinghelp.system.entity.KnowledgeBase;
+import com.thinkinghelp.system.mapper.HealthProfileMapper;
 import com.thinkinghelp.system.mapper.KnowledgeBaseMapper;
 import com.thinkinghelp.system.service.AIService;
 import com.thinkinghelp.system.service.AiConfigKeys;
@@ -11,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -20,22 +26,26 @@ import java.util.stream.Collectors;
 public class RagServiceImpl implements RagService {
 
     private final KnowledgeBaseMapper knowledgeBaseMapper;
+    private final HealthProfileMapper healthProfileMapper;
     private final AIService aiService;
     private final PromptManager promptManager;
+    private final ObjectMapper objectMapper;
 
     @Override
-    public String ask(String question) {
+    public String ask(Long userId, String question) {
         String context = retrieveContext(question);
-        String fullPrompt = promptManager.buildNutritionistPrompt(question, context);
+        String profileSummary = buildProfileSummary(userId);
+        String fullPrompt = promptManager.buildNutritionistPrompt(question, context, profileSummary);
 
         String response = aiService.chat(fullPrompt, AiConfigKeys.MEDICAL);
         return appendDisclaimerIfNeeded(response, context);
     }
 
     @Override
-    public Flux<String> streamAsk(String question) {
+    public Flux<String> streamAsk(Long userId, String question) {
         String context = retrieveContext(question);
-        String fullPrompt = promptManager.buildNutritionistPrompt(question, context);
+        String profileSummary = buildProfileSummary(userId);
+        String fullPrompt = promptManager.buildNutritionistPrompt(question, context, profileSummary);
 
         Flux<String> streamResponse = aiService.streamChat(fullPrompt, AiConfigKeys.MEDICAL);
 
@@ -78,5 +88,78 @@ public class RagServiceImpl implements RagService {
             return response + "\n\n(注意：本地知识库未收录相关内容，回答仅供参考)";
         }
         return response;
+    }
+
+    private String buildProfileSummary(Long userId) {
+        if (userId == null) {
+            return "";
+        }
+        HealthProfile profile = healthProfileMapper.selectOne(
+                new LambdaQueryWrapper<HealthProfile>().eq(HealthProfile::getUserId, userId));
+        if (profile == null) {
+            return "";
+        }
+
+        List<String> parts = new ArrayList<>();
+        append(parts, "姓名", profile.getName());
+        append(parts, "性别", profile.getGender());
+        append(parts, "年龄", profile.getAge());
+        append(parts, "身高(cm)", profile.getHeight());
+        append(parts, "体重(kg)", profile.getWeight());
+        append(parts, "BMI", profile.getBmi());
+        append(parts, "体检日期", profile.getReportDate());
+        append(parts, "活动水平", profile.getActivityLevel());
+        append(parts, "目标", profile.getGoal());
+        append(parts, "运动频率(次/周)", profile.getExerciseFrequency());
+        append(parts, "单次运动时长(分钟)", profile.getExerciseDuration());
+
+        append(parts, "收缩压(mmHg)", profile.getBpSystolic());
+        append(parts, "舒张压(mmHg)", profile.getBpDiastolic());
+        append(parts, "空腹血糖(mmol/L)", profile.getFastingGlucose());
+        append(parts, "糖化血红蛋白(%)", profile.getHba1c());
+        append(parts, "总胆固醇(mmol/L)", profile.getTotalCholesterol());
+        append(parts, "甘油三酯(mmol/L)", profile.getTriglycerides());
+        append(parts, "高密度脂蛋白HDL(mmol/L)", profile.getHdl());
+        append(parts, "低密度脂蛋白LDL(mmol/L)", profile.getLdl());
+        append(parts, "尿酸(umol/L)", profile.getUricAcid());
+        append(parts, "ALT(U/L)", profile.getAlt());
+        append(parts, "AST(U/L)", profile.getAst());
+        append(parts, "肌酐(umol/L)", profile.getCreatinine());
+        append(parts, "尿素氮(mmol/L)", profile.getBun());
+
+        append(parts, "慢病", parseList(profile.getDiseases()));
+        append(parts, "过敏", parseList(profile.getAllergies()));
+        append(parts, "忌口/其他限制", profile.getOtherRestrictions());
+
+        if (parts.isEmpty()) {
+            return "";
+        }
+        return String.join("\n", parts);
+    }
+
+    private void append(List<String> parts, String label, Object value) {
+        if (value == null) {
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.isBlank()) {
+            return;
+        }
+        parts.add(label + ": " + text);
+    }
+
+    private String parseList(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return "";
+        }
+        try {
+            List<String> values = objectMapper.readValue(raw, new TypeReference<List<String>>() {});
+            if (values == null || values.isEmpty()) {
+                return "";
+            }
+            return values.stream().filter(item -> item != null && !item.isBlank()).collect(Collectors.joining("、"));
+        } catch (Exception ignored) {
+            return raw;
+        }
     }
 }

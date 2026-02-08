@@ -33,7 +33,8 @@ public class SecurityConfig {
                                 "/doc.html",
                                 "/webjars/**",
                                 "/api/auth/**",
-                                "/api/public/**" // 允许公共访问的端点
+                                "/api/public/**", // 允许公共访问的端点
+                                "/api/export/pdf" // 导出接口在控制器内做 token 校验，避免外层误拦截
                         ).permitAll()
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

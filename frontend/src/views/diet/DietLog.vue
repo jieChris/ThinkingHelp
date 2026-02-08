@@ -6,6 +6,39 @@
           <span>饮食记录</span>
         </div>
       </template>
+
+      <div class="plan-import">
+        <div class="plan-header">
+          <h3>从食谱导入</h3>
+          <el-button size="small" @click="fetchMealPlans" :loading="planLoading">刷新食谱</el-button>
+        </div>
+        <el-form label-width="120px" size="large">
+          <el-form-item label="选择食谱">
+            <el-select v-model="selectedPlanId" placeholder="请选择已保存的食谱" style="width: 100%;" @change="handlePlanChange">
+              <el-option v-for="plan in savedPlans" :key="plan.id" :label="plan.title" :value="plan.id" />
+            </el-select>
+          </el-form-item>
+          <el-form-item v-if="selectedPlan" label="选择日期">
+            <el-select v-model="selectedDay" placeholder="请选择日期" style="width: 100%;">
+              <el-option v-for="day in dayOptions" :key="day" :label="day" :value="day" />
+            </el-select>
+          </el-form-item>
+          <el-form-item v-if="selectedPlan" label="选择餐次">
+            <el-select v-model="selectedMealKey" placeholder="请选择餐次" style="width: 100%;">
+              <el-option v-for="item in mealOptions" :key="item.value" :label="item.label" :value="item.value" />
+            </el-select>
+          </el-form-item>
+          <el-form-item v-if="selectedMeal" label="餐次内容">
+            <div class="meal-preview">
+              <div class="meal-name">{{ selectedMeal.name || (selectedMeal.foods || []).join('、') }}</div>
+              <div class="meal-cal">{{ selectedMeal.calories || '—' }}</div>
+            </div>
+          </el-form-item>
+          <el-form-item v-if="selectedMeal">
+            <el-button type="primary" @click="applyMealToLog">一键记录该餐</el-button>
+          </el-form-item>
+        </el-form>
+      </div>
       
       <el-form label-width="120px" size="large">
         <el-form-item label="餐别">
@@ -140,13 +173,17 @@
                 <el-table-column label="碳水(g)" width="120">
                     <template #default="scope">
                         <span>{{ scope.row.carbsGrams ?? '--' }}</span>
-                        <span v-if="scope.row.carbsSource === 'ai'" class="source-tag">AI</span>
+                        <span v-if="scope.row.carbsSource === 'plan'" class="source-tag">食谱</span>
+                        <span v-else-if="scope.row.carbsSource === 'ai'" class="source-tag">AI</span>
+                        <span v-else-if="scope.row.carbsSource === 'cache'" class="source-tag">缓存</span>
                     </template>
                 </el-table-column>
                 <el-table-column label="糖(g)" width="120">
                     <template #default="scope">
                         <span>{{ scope.row.sugarGrams ?? '--' }}</span>
-                        <span v-if="scope.row.sugarSource === 'ai'" class="source-tag">AI</span>
+                        <span v-if="scope.row.sugarSource === 'plan'" class="source-tag">食谱</span>
+                        <span v-else-if="scope.row.sugarSource === 'ai'" class="source-tag">AI</span>
+                        <span v-else-if="scope.row.sugarSource === 'cache'" class="source-tag">缓存</span>
                     </template>
                 </el-table-column>
                 <el-table-column prop="calories" label="热量(kcal)" width="120" />
@@ -227,6 +264,12 @@ const logs = ref<any[]>([])
 const loading = ref(false)
 const dateRange = ref<[string, string] | null>(null)
 const editVisible = ref(false)
+const planLoading = ref(false)
+const savedPlans = ref<any[]>([])
+const selectedPlanId = ref<number | null>(null)
+const selectedPlan = ref<any>(null)
+const selectedDay = ref('')
+const selectedMealKey = ref('breakfast')
 const editForm = reactive({
     id: null as number | null,
     mealType: '',
@@ -238,6 +281,32 @@ const editForm = reactive({
     sugarGrams: 0,
     carbsSource: '',
     sugarSource: ''
+})
+
+const weeklyPlan = computed(() => {
+    const plan = selectedPlan.value?.weeklyPlan
+    return Array.isArray(plan) ? plan : []
+})
+
+const dayOptions = computed(() => {
+    if (!weeklyPlan.value.length) return []
+    return weeklyPlan.value.map((day: any) => day?.day || '当天')
+})
+
+const mealOptions = computed(() => {
+    return [
+        { label: '早餐', value: 'breakfast' },
+        { label: '午餐', value: 'lunch' },
+        { label: '晚餐', value: 'dinner' },
+        { label: '加餐', value: 'snack' }
+    ]
+})
+
+const selectedMeal = computed(() => {
+    if (!weeklyPlan.value.length || !selectedDay.value) return null
+    const day = weeklyPlan.value.find((item: any) => (item?.day || '当天') === selectedDay.value)
+    if (!day) return null
+    return day[selectedMealKey.value] || null
 })
 
 const foodCatalog = [
@@ -257,20 +326,24 @@ const units = [
 ]
 
 const totalCalories = computed(() => {
-    return logs.value.reduce((sum, item) => sum + (Number(item.calories) || 0), 0)
+    const list = Array.isArray(logs.value) ? logs.value : []
+    return list.reduce((sum, item) => sum + (Number(item.calories) || 0), 0)
 })
 
 const totalCarbs = computed(() => {
-    return logs.value.reduce((sum, item) => sum + (Number(item.carbsGrams) || 0), 0)
+    const list = Array.isArray(logs.value) ? logs.value : []
+    return list.reduce((sum, item) => sum + (Number(item.carbsGrams) || 0), 0)
 })
 
 const totalSugar = computed(() => {
-    return logs.value.reduce((sum, item) => sum + (Number(item.sugarGrams) || 0), 0)
+    const list = Array.isArray(logs.value) ? logs.value : []
+    return list.reduce((sum, item) => sum + (Number(item.sugarGrams) || 0), 0)
 })
 
 const groupedLogs = computed(() => {
     const groups: Record<string, { key: string; title: string; items: any[]; totalCalories: number }> = {}
-    logs.value.forEach((item) => {
+    const list = Array.isArray(logs.value) ? logs.value : []
+    list.forEach((item) => {
         const day = item.recordedAt ? dayjs(item.recordedAt).format('YYYY-MM-DD') : '未知日期'
         const mealLabel = mealTypeLabel(item.mealType)
         const key = `${day}_${item.mealType || 'UNKNOWN'}`
@@ -291,6 +364,111 @@ const groupedLogs = computed(() => {
 const handleFoodChange = () => {
     const matched = foodCatalog.find((f) => f.name === form.foodName)
     form.foodId = matched ? matched.id : null
+}
+
+const fetchMealPlans = async () => {
+    planLoading.value = true
+    try {
+        const res: any = await request.get('/meal-plan')
+        if (res.code === 200) {
+            savedPlans.value = Array.isArray(res.data) ? res.data : []
+        }
+    } catch (e) {
+        console.error(e)
+    } finally {
+        planLoading.value = false
+    }
+}
+
+const handlePlanChange = async (id: number) => {
+    selectedPlanId.value = id
+    selectedPlan.value = null
+    selectedDay.value = ''
+    selectedMealKey.value = 'breakfast'
+    if (!id) return
+    try {
+        const res: any = await request.get(`/meal-plan/${id}`)
+        if (res.code === 200) {
+            selectedPlan.value = res.data
+            const firstDay = res.data?.weeklyPlan?.[0]?.day || '当天'
+            selectedDay.value = firstDay
+        } else {
+            ElMessage.error(res.msg || '加载食谱失败')
+        }
+    } catch (e) {
+        console.error(e)
+    }
+}
+
+const applyMealToLog = () => {
+    if (!selectedMeal.value) return
+    const meal = selectedMeal.value
+    const nutrient = extractMealNutrition(meal)
+    form.foodName = meal.name || (meal.foods || []).join('、') || '食谱餐次'
+    form.foodId = null
+    form.unit = ''
+    form.count = 1
+    form.weightGrams = nutrient.weightGrams
+    form.mealType = mapMealType(selectedMealKey.value)
+    const calories = nutrient.calories
+    if (!calories) {
+        ElMessage.warning('该餐次未提供热量信息，请手动补充后再记录')
+        return
+    }
+    form.calories = calories
+    form.carbsGrams = nutrient.carbsGrams
+    form.sugarGrams = nutrient.sugarGrams
+    form.carbsSource = 'plan'
+    form.sugarSource = 'plan'
+    submitLog()
+}
+
+const mapMealType = (key: string) => {
+    switch (key) {
+        case 'breakfast':
+            return 'BREAKFAST'
+        case 'lunch':
+            return 'LUNCH'
+        case 'dinner':
+            return 'DINNER'
+        case 'snack':
+            return 'SNACK'
+        default:
+            return 'LUNCH'
+    }
+}
+
+const extractCalories = (value: string | undefined) => {
+    if (!value) return 0
+    const match = String(value).match(/([0-9]+(?:\\.[0-9]+)?)/)
+    if (!match) return 0
+    return Math.round(Number(match[1]))
+}
+
+const extractMealNutrition = (meal: any) => {
+    const caloriesKcal = Number(meal?.caloriesKcal)
+    const carbsGrams = Number(meal?.carbsGrams)
+    const ingredients = Array.isArray(meal?.ingredients) ? meal.ingredients : []
+    const ingredientCalories = ingredients.reduce((sum: number, item: any) => sum + (Number(item?.caloriesKcal) || 0), 0)
+    const ingredientCarbs = ingredients.reduce((sum: number, item: any) => sum + (Number(item?.carbsGrams) || 0), 0)
+    const ingredientWeight = ingredients.reduce((sum: number, item: any) => sum + (Number(item?.grams) || 0), 0)
+
+    const calories = Number.isFinite(caloriesKcal) && caloriesKcal > 0
+        ? Math.round(caloriesKcal)
+        : ingredientCalories > 0
+            ? Math.round(ingredientCalories)
+            : extractCalories(meal?.calories)
+    const carbs = Number.isFinite(carbsGrams) && carbsGrams > 0
+        ? Math.round(carbsGrams)
+        : ingredientCarbs > 0
+            ? Math.round(ingredientCarbs)
+            : 0
+    return {
+        calories,
+        carbsGrams: carbs,
+        sugarGrams: 0,
+        weightGrams: ingredientWeight > 0 ? Math.round(ingredientWeight) : 0
+    }
 }
 
 const foodLabel = (id: number) => {
@@ -353,6 +531,7 @@ const submitLog = async () => {
     let sugarGrams = form.sugarGrams
     let carbsSource = form.carbsSource
     let sugarSource = form.sugarSource
+    const fromPlanImport = carbsSource === 'plan' || sugarSource === 'plan'
     if (!calories && resolvedWeight && form.foodId) {
         const matched = foodCatalog.find((f) => f.id === form.foodId)
         if (matched) {
@@ -361,7 +540,7 @@ const submitLog = async () => {
         }
     }
     if (calories && !caloriesSource) {
-        caloriesSource = 'manual'
+        caloriesSource = form.carbsSource === 'plan' ? 'plan' : 'manual'
     }
 
     if (resolvedWeight && form.foodId) {
@@ -378,23 +557,23 @@ const submitLog = async () => {
         }
     }
 
-    if (!calories && resolvedWeight) {
-        const aiCalories = await estimateCaloriesByAi(form.foodName, resolvedWeight)
-        if (aiCalories) {
-            calories = aiCalories
-            caloriesSource = 'ai'
+    if (!fromPlanImport && !calories && resolvedWeight) {
+        const estimated = await estimateCaloriesByAi(form.foodName, resolvedWeight)
+        if (estimated.calories) {
+            calories = estimated.calories
+            caloriesSource = estimated.source
         }
     }
 
-    if ((!carbsGrams || !sugarGrams) && resolvedWeight) {
+    if (!fromPlanImport && (!carbsGrams || !sugarGrams) && resolvedWeight) {
         const macro = await estimateMacrosByAi(form.foodName, resolvedWeight)
         if (!carbsGrams && macro?.carbsGrams) {
             carbsGrams = Math.round(macro.carbsGrams)
-            carbsSource = 'ai'
+            carbsSource = macro.source
         }
         if (!sugarGrams && macro?.sugarGrams) {
             sugarGrams = Math.round(macro.sugarGrams)
-            sugarSource = 'ai'
+            sugarSource = macro.source
         }
     }
 
@@ -445,7 +624,9 @@ const mealTypeLabel = (value: string) => {
 const caloriesSourceLabel = (value: string) => {
     const map: Record<string, string> = {
         catalog: '本地计算',
+        cache: '本地缓存',
         manual: '手动输入',
+        plan: '食谱同步',
         ai: 'AI估算(参考)'
     }
     return map[value] || ''
@@ -476,12 +657,16 @@ const estimateCaloriesByAi = async (foodName: string, weightGrams: number) => {
             weightGrams
         })
         if (res.code === 200 && res.data?.calories) {
-            return Math.round(res.data.calories)
+            const note = String(res.data?.note || '')
+            return {
+                calories: Math.round(res.data.calories),
+                source: note.includes('本地缓存') ? 'cache' : 'ai'
+            }
         }
     } catch (e) {
         console.error(e)
     }
-    return 0
+    return { calories: 0, source: 'ai' as const }
 }
 
 const estimateMacrosByAi = async (foodName: string, weightGrams: number) => {
@@ -491,7 +676,12 @@ const estimateMacrosByAi = async (foodName: string, weightGrams: number) => {
             weightGrams
         })
         if (res.code === 200 && res.data) {
-            return res.data
+            const note = String(res.data?.note || '')
+            return {
+                carbsGrams: res.data?.carbsGrams,
+                sugarGrams: res.data?.sugarGrams,
+                source: note.includes('本地缓存') ? 'cache' : 'ai'
+            }
         }
     } catch (e) {
         console.error(e)
@@ -528,7 +718,7 @@ const fetchLogs = async () => {
         }
         const res: any = await request.get('/diet/logs', { params })
         if (res.code === 200) {
-            logs.value = res.data || []
+            logs.value = Array.isArray(res.data) ? res.data : []
         }
     } catch (e) {
         console.error(e)
@@ -603,6 +793,7 @@ const deleteLog = async (row: any) => {
 
 onMounted(() => {
     applyPreset('week')
+    fetchMealPlans()
 })
 </script>
 
@@ -615,6 +806,27 @@ onMounted(() => {
 .record-card,
 .history-card {
     width: 100%;
+}
+.plan-import {
+    margin-bottom: 20px;
+    padding: 16px;
+    border: 1px dashed #e5e7eb;
+    border-radius: 10px;
+    background: #f9fafb;
+    .plan-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+        h3 { margin: 0; color: #1f2937; }
+    }
+}
+.meal-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    .meal-name { font-weight: 600; }
+    .meal-cal { color: #6b7280; font-size: 12px; }
 }
 .fuzzy-selector {
     display: flex;

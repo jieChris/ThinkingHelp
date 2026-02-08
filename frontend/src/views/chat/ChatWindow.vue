@@ -304,6 +304,14 @@ const stopStreaming = async () => {
     loading.value = false
 }
 
+const forceLogoutForServerError = (message: string) => {
+    userStore.logout()
+    ElMessage.error(message)
+    if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+    }
+}
+
 const sendMessage = async () => {
     if (!inputRaw.value.trim() || loading.value) return
     
@@ -336,9 +344,12 @@ const sendMessage = async () => {
             signal: abortController.value.signal
         })
 
-        if (response.status === 401) {
-            localStorage.removeItem('token')
-            window.location.href = '/login'
+        if (response.status === 401 || response.status === 403) {
+            forceLogoutForServerError('登录已失效，请重新登录')
+            return
+        }
+        if ([500, 502, 503, 504].includes(response.status)) {
+            forceLogoutForServerError('服务器异常，已自动退出，请重新登录')
             return
         }
         if (!response.ok) throw new Error(response.statusText)

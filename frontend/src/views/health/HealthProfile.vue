@@ -62,6 +62,43 @@
                             </el-form-item>
                         </el-col>
                     </el-row>
+                    <el-row :gutter="20">
+                        <el-col :span="12">
+                             <el-form-item label="日常活动量">
+                                <el-select v-model="form.activityLevel" placeholder="请选择">
+                                    <el-option label="久坐/少动" value="SEDENTARY" />
+                                    <el-option label="轻度活动" value="LIGHT" />
+                                    <el-option label="中度活动" value="MODERATE" />
+                                    <el-option label="高强度活动" value="ACTIVE" />
+                                </el-select>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="12">
+                             <el-form-item label="健康目标">
+                                <el-select v-model="form.goal" placeholder="请选择">
+                                    <el-option label="维持体重" value="MAINTAIN" />
+                                    <el-option label="减脂/减重" value="LOSE" />
+                                    <el-option label="增肌/增重" value="GAIN" />
+                                </el-select>
+                            </el-form-item>
+                        </el-col>
+                    </el-row>
+                    <el-row :gutter="20">
+                        <el-col :span="12">
+                             <el-form-item label="运动频率">
+                                <el-input v-model="form.exerciseFrequency" type="number" placeholder="例如 3">
+                                    <template #append>次/周</template>
+                                </el-input>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="12">
+                             <el-form-item label="单次时长">
+                                <el-input v-model="form.exerciseDuration" type="number" placeholder="例如 30">
+                                    <template #append>分钟</template>
+                                </el-input>
+                            </el-form-item>
+                        </el-col>
+                    </el-row>
                 </el-form>
 
                 <!-- Step 2: Diseases -->
@@ -308,15 +345,12 @@
                             </el-form-item>
                         </el-col>
                         
-                        <!-- Glucose -->
                         <el-col :span="8">
-                             <el-form-item label="空腹血糖">
-                                <el-input v-model="batchForm.values.glucose" type="number" step="0.1">
-                                    <template #append>mmol/L</template>
-                                </el-input>
+                            <el-form-item label="血糖记录">
+                                <el-button type="primary" plain @click="activeTab = 'glucose'">去控糖管理记录</el-button>
                             </el-form-item>
                         </el-col>
-                        
+
                         <!-- Heart Rate -->
                         <el-col :span="8">
                              <el-form-item label="心率">
@@ -372,7 +406,6 @@
                             </span>
                         </template>
                     </el-table-column>
-                    <el-table-column prop="glucose" label="血糖" width="100" />
                     <el-table-column prop="heartRate" label="心率" width="100" />
                     <el-table-column label="操作" min-width="100">
                         <template #default="scope">
@@ -382,6 +415,236 @@
                  </el-table>
              </div>
          </div>
+      </el-tab-pane>
+
+      <!-- Tab 3: Glucose Management -->
+      <el-tab-pane label="控糖管理" name="glucose">
+          <div class="glucose-container">
+              <div class="glucose-form-card">
+                  <div class="list-header">
+                      <h3>🩸 血糖专项记录</h3>
+                  </div>
+                  <el-form label-width="120px" size="large">
+                      <el-row :gutter="20">
+                          <el-col :span="8">
+                              <el-form-item label="记录时间">
+                                  <el-date-picker
+                                      v-model="glucoseForm.recordedAt"
+                                      type="datetime"
+                                      format="YYYY-MM-DD HH:mm"
+                                      value-format="YYYY-MM-DD HH:mm:ss"
+                                  />
+                              </el-form-item>
+                          </el-col>
+                          <el-col :span="8">
+                              <el-form-item label="血糖类型">
+                                  <el-select v-model="glucoseForm.measureType">
+                                      <el-option label="空腹" value="FASTING" />
+                                      <el-option label="餐后2小时" value="POST_MEAL_2H" />
+                                      <el-option label="睡前" value="BEFORE_SLEEP" />
+                                      <el-option label="随机" value="RANDOM" />
+                                  </el-select>
+                              </el-form-item>
+                          </el-col>
+                          <el-col :span="8">
+                              <el-form-item label="血糖值">
+                                  <el-input v-model="glucoseForm.glucoseValue" type="number" step="0.1">
+                                      <template #append>mmol/L</template>
+                                  </el-input>
+                              </el-form-item>
+                          </el-col>
+                          <el-col :span="8">
+                              <el-form-item label="相关餐次">
+                                  <el-input v-model="glucoseForm.relatedMeal" placeholder="如：早餐后、晚餐前" />
+                              </el-form-item>
+                          </el-col>
+                          <el-col :span="8">
+                              <el-form-item label="低/高血糖事件">
+                                  <el-select v-model="glucoseForm.eventType" placeholder="自动判定">
+                                      <el-option label="正常" value="NORMAL" />
+                                      <el-option label="偏高" value="HIGH" />
+                                      <el-option label="偏低" value="LOW" />
+                                  </el-select>
+                              </el-form-item>
+                          </el-col>
+                          <el-col :span="8">
+                              <el-form-item label="用药备注">
+                                  <el-input v-model="glucoseForm.medicationNote" placeholder="如：二甲双胍 0.5g" />
+                              </el-form-item>
+                          </el-col>
+                          <el-col :span="24">
+                              <el-form-item label="症状描述">
+                                  <el-input v-model="glucoseForm.symptoms" type="textarea" :rows="2" placeholder="如：头晕、心慌、出汗" />
+                              </el-form-item>
+                          </el-col>
+                      </el-row>
+                      <div class="form-actions">
+                          <el-button type="primary" :loading="glucoseSubmitting" @click="submitGlucoseRecord">保存血糖记录</el-button>
+                      </div>
+                  </el-form>
+              </div>
+
+              <el-divider />
+
+              <div class="glucose-summary">
+                  <el-row :gutter="16">
+                      <el-col :span="6">
+                          <el-card shadow="never">
+                              <div class="summary-title">平均血糖</div>
+                              <div class="summary-value">{{ displayNum(glucoseSummary.avgGlucose) }}</div>
+                          </el-card>
+                      </el-col>
+                      <el-col :span="6">
+                          <el-card shadow="never">
+                              <div class="summary-title">空腹均值</div>
+                              <div class="summary-value">{{ displayNum(glucoseSummary.fastingAvg) }}</div>
+                          </el-card>
+                      </el-col>
+                      <el-col :span="6">
+                          <el-card shadow="never">
+                              <div class="summary-title">高血糖次数</div>
+                              <div class="summary-value warning">{{ glucoseSummary.highCount || 0 }}</div>
+                          </el-card>
+                      </el-col>
+                      <el-col :span="6">
+                          <el-card shadow="never">
+                              <div class="summary-title">低血糖次数</div>
+                              <div class="summary-value danger">{{ glucoseSummary.lowCount || 0 }}</div>
+                          </el-card>
+                      </el-col>
+                  </el-row>
+              </div>
+
+              <el-alert
+                  v-if="glucoseAnalysis.alerts.length"
+                  :title="`风险等级：${glucoseRiskLabel(glucoseAnalysis.riskLevel)}`"
+                  type="warning"
+                  show-icon
+                  :closable="false"
+                  class="risk-alert"
+              >
+                  <template #default>
+                      <ul class="analysis-alerts">
+                          <li v-for="item in glucoseAnalysis.alerts" :key="item">{{ item }}</li>
+                      </ul>
+                  </template>
+              </el-alert>
+
+              <el-card class="glucose-chart-card" shadow="never">
+                  <template #header>
+                      <div class="list-header">
+                          <h3>📈 血糖趋势</h3>
+                      </div>
+                  </template>
+                  <div ref="glucoseChartRef" class="glucose-chart"></div>
+              </el-card>
+
+              <div class="history-list">
+                  <div class="list-header">
+                      <h3>📋 控糖历史</h3>
+                      <div class="list-actions">
+                          <el-button size="small" @click="applyGlucosePreset('day')">今天</el-button>
+                          <el-button size="small" @click="applyGlucosePreset('3d')">近3天</el-button>
+                          <el-button size="small" @click="applyGlucosePreset('week')">本周</el-button>
+                          <el-button size="small" @click="applyGlucosePreset('month')">本月</el-button>
+                          <el-button size="small" @click="applyGlucosePreset('all')">全部</el-button>
+                          <el-button circle icon="Refresh" @click="fetchGlucoseRecords" />
+                      </div>
+                  </div>
+                  <div class="filter-row">
+                      <el-date-picker
+                          v-model="glucoseRange"
+                          type="daterange"
+                          range-separator="至"
+                          start-placeholder="开始日期"
+                          end-placeholder="结束日期"
+                          format="YYYY-MM-DD"
+                          value-format="YYYY-MM-DD"
+                          @change="fetchGlucoseRecords"
+                      />
+                  </div>
+                  <el-table :data="glucoseRecords" style="width: 100%" v-loading="glucoseLoading">
+                      <el-table-column prop="recordedAt" label="记录时间" width="180" :formatter="formatDate" />
+                      <el-table-column label="类型" width="130">
+                          <template #default="scope">{{ glucoseMeasureLabel(scope.row.measureType) }}</template>
+                      </el-table-column>
+                      <el-table-column label="血糖值" width="120">
+                          <template #default="scope">{{ scope.row.glucoseValue }} mmol/L</template>
+                      </el-table-column>
+                      <el-table-column label="事件" width="120">
+                          <template #default="scope">
+                              <el-tag :type="glucoseEventTagType(scope.row.eventType)" size="small">
+                                  {{ glucoseEventLabel(scope.row.eventType) }}
+                              </el-tag>
+                          </template>
+                      </el-table-column>
+                      <el-table-column prop="relatedMeal" label="相关餐次" />
+                      <el-table-column prop="medicationNote" label="用药备注" />
+                      <el-table-column label="操作" width="100">
+                          <template #default="scope">
+                              <el-button link type="danger" @click="deleteGlucoseRecord(scope.row.id)">删除</el-button>
+                          </template>
+                      </el-table-column>
+                  </el-table>
+              </div>
+
+              <el-card class="glucose-impact-card" shadow="never">
+                  <template #header>
+                      <div class="list-header">
+                          <h3>🍽️ 饮食关联分析（餐后高血糖）</h3>
+                      </div>
+                  </template>
+                  <el-table :data="glucoseAnalysis.mealImpacts" style="width: 100%">
+                      <el-table-column prop="glucoseTime" label="血糖时间" width="170" />
+                      <el-table-column prop="glucoseValue" label="血糖值" width="110">
+                          <template #default="scope">
+                              {{ scope.row.glucoseValue }} mmol/L
+                          </template>
+                      </el-table-column>
+                      <el-table-column prop="mealTime" label="关联餐次时间" width="170" />
+                      <el-table-column prop="mealType" label="餐次" width="100" />
+                      <el-table-column prop="mealName" label="餐食内容" />
+                      <el-table-column prop="suggestion" label="建议" min-width="220" />
+                  </el-table>
+              </el-card>
+
+              <el-card class="glucose-impact-card" shadow="never">
+                  <template #header>
+                      <div class="list-header">
+                          <h3>⏰ 随访提醒任务</h3>
+                          <div class="list-actions">
+                              <el-button size="small" :loading="glucoseTaskGenerating" @click="generateGlucoseTasks">自动生成任务</el-button>
+                              <el-button size="small" @click="fetchGlucoseTasks">刷新</el-button>
+                          </div>
+                      </div>
+                  </template>
+                  <el-table :data="glucoseTasks" style="width: 100%" v-loading="glucoseTaskLoading">
+                      <el-table-column prop="title" label="任务" min-width="220" />
+                      <el-table-column prop="note" label="说明" min-width="200" />
+                      <el-table-column prop="dueAt" label="截止时间" width="170">
+                          <template #default="scope">{{ formatTaskDate(scope.row.dueAt) }}</template>
+                      </el-table-column>
+                      <el-table-column prop="status" label="状态" width="100">
+                          <template #default="scope">
+                              <el-tag :type="scope.row.status === 'DONE' ? 'success' : 'warning'" size="small">
+                                  {{ scope.row.status === 'DONE' ? '已完成' : '待完成' }}
+                              </el-tag>
+                          </template>
+                      </el-table-column>
+                      <el-table-column label="操作" width="140">
+                          <template #default="scope">
+                              <el-button
+                                  v-if="scope.row.status !== 'DONE'"
+                                  link
+                                  type="primary"
+                                  @click="completeGlucoseTask(scope.row.id)"
+                              >完成</el-button>
+                              <el-button link type="danger" @click="deleteGlucoseTask(scope.row.id)">删除</el-button>
+                          </template>
+                      </el-table-column>
+                  </el-table>
+              </el-card>
+          </div>
       </el-tab-pane>
 
       <!-- Tab 3: Profile History -->
@@ -461,6 +724,43 @@
               <el-col :span="12">
                   <el-form-item label="BMI">
                       <el-input v-model="historyForm.bmi" />
+                  </el-form-item>
+              </el-col>
+          </el-row>
+          <el-row :gutter="20">
+              <el-col :span="12">
+                  <el-form-item label="日常活动量">
+                      <el-select v-model="historyForm.activityLevel" placeholder="请选择">
+                          <el-option label="久坐/少动" value="SEDENTARY" />
+                          <el-option label="轻度活动" value="LIGHT" />
+                          <el-option label="中度活动" value="MODERATE" />
+                          <el-option label="高强度活动" value="ACTIVE" />
+                      </el-select>
+                  </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                  <el-form-item label="健康目标">
+                      <el-select v-model="historyForm.goal" placeholder="请选择">
+                          <el-option label="维持体重" value="MAINTAIN" />
+                          <el-option label="减脂/减重" value="LOSE" />
+                          <el-option label="增肌/增重" value="GAIN" />
+                      </el-select>
+                  </el-form-item>
+              </el-col>
+          </el-row>
+          <el-row :gutter="20">
+              <el-col :span="12">
+                  <el-form-item label="运动频率">
+                      <el-input v-model="historyForm.exerciseFrequency" type="number">
+                          <template #append>次/周</template>
+                      </el-input>
+                  </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                  <el-form-item label="单次时长">
+                      <el-input v-model="historyForm.exerciseDuration" type="number">
+                          <template #append>分钟</template>
+                      </el-input>
                   </el-form-item>
               </el-col>
           </el-row>
@@ -603,8 +903,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, reactive, onMounted, watch } from 'vue'
+import { computed, ref, reactive, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
+import * as echarts from 'echarts'
 import { useUserStore } from '../../stores/user'
 import request from '../../api/request'
 import dayjs from 'dayjs'
@@ -639,6 +940,10 @@ const form = reactive({
     weight: 70,
     bmi: '22.8',
     reportDate: '',
+    activityLevel: '',
+    goal: '',
+    exerciseFrequency: '',
+    exerciseDuration: '',
     bpSystolic: '',
     bpDiastolic: '',
     fastingGlucose: '',
@@ -665,6 +970,10 @@ const historyForm = reactive({
     weight: '',
     bmi: '',
     reportDate: '',
+    activityLevel: '',
+    goal: '',
+    exerciseFrequency: '',
+    exerciseDuration: '',
     bpSystolic: '',
     bpDiastolic: '',
     fastingGlucose: '',
@@ -682,6 +991,45 @@ const historyForm = reactive({
     allergies: [] as string[],
     otherRestrictions: ''
 })
+
+const glucoseRange = ref<[string, string] | null>(null)
+const glucoseLoading = ref(false)
+const glucoseSubmitting = ref(false)
+const glucoseRecords = ref<any[]>([])
+const glucoseChartRef = ref<HTMLElement | null>(null)
+let glucoseChart: echarts.ECharts | null = null
+
+const glucoseForm = reactive({
+    recordedAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+    measureType: 'FASTING',
+    glucoseValue: '',
+    eventType: '',
+    medicationNote: '',
+    symptoms: '',
+    relatedMeal: ''
+})
+
+const glucoseSummary = reactive({
+    avgGlucose: null as number | null,
+    fastingAvg: null as number | null,
+    postMealAvg: null as number | null,
+    beforeSleepAvg: null as number | null,
+    randomAvg: null as number | null,
+    latestGlucose: null as number | null,
+    highCount: 0,
+    lowCount: 0,
+    normalCount: 0,
+    totalCount: 0
+})
+
+const glucoseAnalysis = reactive({
+    riskLevel: 'LOW',
+    alerts: [] as string[],
+    mealImpacts: [] as any[]
+})
+const glucoseTasks = ref<any[]>([])
+const glucoseTaskLoading = ref(false)
+const glucoseTaskGenerating = ref(false)
 
 const commonDiseases = [
     { label: '高血压', value: 'hypertension' },
@@ -721,6 +1069,10 @@ const fetchProfile = async () => {
             form.weight = data.weight || 0
             form.bmi = data.bmi || ''
             form.reportDate = data.reportDate || ''
+            form.activityLevel = data.activityLevel || ''
+            form.goal = data.goal || ''
+            form.exerciseFrequency = data.exerciseFrequency ?? ''
+            form.exerciseDuration = data.exerciseDuration ?? ''
             form.bpSystolic = data.bpSystolic ?? ''
             form.bpDiastolic = data.bpDiastolic ?? ''
             form.fastingGlucose = data.fastingGlucose ?? ''
@@ -756,6 +1108,10 @@ const buildPayload = (source: typeof form | typeof historyForm) => {
         weight: toNumberOrNull(source.weight),
         bmi: source.bmi,
         reportDate: source.reportDate || null,
+        activityLevel: source.activityLevel || null,
+        goal: source.goal || null,
+        exerciseFrequency: toNumberOrNull(source.exerciseFrequency as any),
+        exerciseDuration: toNumberOrNull(source.exerciseDuration as any),
         bpSystolic: toNumberOrNull(source.bpSystolic),
         bpDiastolic: toNumberOrNull(source.bpDiastolic),
         fastingGlucose: toNumberOrNull(source.fastingGlucose),
@@ -803,7 +1159,6 @@ interface HealthRecord {
     weight?: number
     systolic?: number
     diastolic?: number
-    glucose?: number
     heartRate?: number
     recordedAt: string
 }
@@ -819,7 +1174,6 @@ const batchForm = reactive({
         weight: '',
         systolic: '',
         diastolic: '',
-        glucose: '',
         heart_rate: ''
     } as Record<string, string | number>
 })
@@ -932,14 +1286,12 @@ const prefillBatchForm = () => {
         batchForm.values.weight = latest.weight || ''
         batchForm.values.systolic = latest.systolic || ''
         batchForm.values.diastolic = latest.diastolic || ''
-        batchForm.values.glucose = latest.glucose || ''
         batchForm.values.heart_rate = latest.heartRate || ''
     } else {
         // Defaults
         batchForm.values.weight = 60
         batchForm.values.systolic = 120
         batchForm.values.diastolic = 80
-        batchForm.values.glucose = 5.5
         batchForm.values.heart_rate = 75
     }
 }
@@ -955,7 +1307,6 @@ const submitBatchMetrics = async () => {
             weight: batchForm.values.weight ? Number(batchForm.values.weight) : null,
             systolic: batchForm.values.systolic ? Number(batchForm.values.systolic) : null,
             diastolic: batchForm.values.diastolic ? Number(batchForm.values.diastolic) : null,
-            glucose: batchForm.values.glucose ? Number(batchForm.values.glucose) : null,
             heartRate: batchForm.values.heart_rate ? Number(batchForm.values.heart_rate) : null,
             recordedAt: batchForm.recordedAt
         }
@@ -984,11 +1335,292 @@ const deleteMetric = async (id: number) => {
     }
 }
 
+const displayNum = (val: number | null | undefined) => {
+    if (val === null || val === undefined) return '--'
+    return `${Number(val).toFixed(2)} mmol/L`
+}
+
+const glucoseMeasureLabel = (type: string) => {
+    const map: Record<string, string> = {
+        FASTING: '空腹',
+        POST_MEAL_2H: '餐后2小时',
+        BEFORE_SLEEP: '睡前',
+        RANDOM: '随机'
+    }
+    return map[type] || type || '--'
+}
+
+const glucoseEventLabel = (type: string) => {
+    const map: Record<string, string> = {
+        NORMAL: '正常',
+        HIGH: '偏高',
+        LOW: '偏低'
+    }
+    return map[type] || '正常'
+}
+
+const glucoseEventTagType = (type: string) => {
+    if (type === 'HIGH') return 'warning'
+    if (type === 'LOW') return 'danger'
+    return 'success'
+}
+
+const glucoseRiskLabel = (riskLevel: string) => {
+    const map: Record<string, string> = {
+        LOW: '低',
+        MEDIUM: '中',
+        HIGH: '高'
+    }
+    return map[riskLevel] || riskLevel || '--'
+}
+
+const applyGlucosePreset = (preset: 'day' | '3d' | 'week' | 'month' | 'all') => {
+    if (preset === 'all') {
+        glucoseRange.value = null
+        fetchGlucoseRecords()
+        return
+    }
+    const end = dayjs().endOf('day')
+    let start = dayjs().startOf('day')
+    if (preset === '3d') {
+        start = dayjs().subtract(2, 'day').startOf('day')
+    } else if (preset === 'week') {
+        const day = dayjs().day()
+        const diff = day === 0 ? -6 : 1 - day
+        start = dayjs().add(diff, 'day').startOf('day')
+    } else if (preset === 'month') {
+        start = dayjs().startOf('month')
+    }
+    glucoseRange.value = [start.format('YYYY-MM-DD'), end.format('YYYY-MM-DD')]
+    fetchGlucoseRecords()
+}
+
+const fetchGlucoseRecords = async () => {
+    if (!userStore.user?.id) return
+    glucoseLoading.value = true
+    try {
+        const params: any = { userId: userStore.user.id }
+        if (glucoseRange.value) {
+            params.start = `${glucoseRange.value[0]} 00:00:00`
+            params.end = `${glucoseRange.value[1]} 23:59:59`
+        }
+        const res: any = await request.get('/health/glucose-records', { params })
+        if (res.code === 200) {
+            glucoseRecords.value = Array.isArray(res.data) ? res.data : []
+            renderGlucoseChart()
+        }
+        await fetchGlucoseSummary()
+        await fetchGlucoseAnalysis()
+        await fetchGlucoseTasks()
+    } catch (e) {
+        console.error(e)
+    } finally {
+        glucoseLoading.value = false
+    }
+}
+
+const fetchGlucoseSummary = async () => {
+    if (!userStore.user?.id) return
+    try {
+        const params: any = { userId: userStore.user.id }
+        if (glucoseRange.value) {
+            params.start = `${glucoseRange.value[0]} 00:00:00`
+            params.end = `${glucoseRange.value[1]} 23:59:59`
+        }
+        const res: any = await request.get('/health/glucose-records/summary', { params })
+        if (res.code === 200 && res.data) {
+            Object.assign(glucoseSummary, res.data)
+        }
+    } catch (e) {
+        console.error(e)
+    }
+}
+
+const fetchGlucoseTasks = async () => {
+    if (!userStore.user?.id) return
+    glucoseTaskLoading.value = true
+    try {
+        const res: any = await request.get('/health/glucose-tasks', {
+            params: { userId: userStore.user.id }
+        })
+        if (res.code === 200) {
+            glucoseTasks.value = Array.isArray(res.data) ? res.data : []
+        }
+    } catch (e) {
+        console.error(e)
+    } finally {
+        glucoseTaskLoading.value = false
+    }
+}
+
+const generateGlucoseTasks = async () => {
+    if (!userStore.user?.id) return
+    glucoseTaskGenerating.value = true
+    try {
+        const res: any = await request.post('/health/glucose-tasks/auto-generate', null, {
+            params: { userId: userStore.user.id }
+        })
+        if (res.code === 200) {
+            const count = Array.isArray(res.data) ? res.data.length : 0
+            ElMessage.success(count > 0 ? `已新增 ${count} 条任务` : '当前暂无新任务')
+            fetchGlucoseTasks()
+        }
+    } catch (e) {
+        console.error(e)
+    } finally {
+        glucoseTaskGenerating.value = false
+    }
+}
+
+const completeGlucoseTask = async (id: number) => {
+    try {
+        const res: any = await request.put(`/health/glucose-tasks/${id}/complete`)
+        if (res.code === 200) {
+            ElMessage.success('任务已完成')
+            fetchGlucoseTasks()
+        }
+    } catch (e) {
+        console.error(e)
+    }
+}
+
+const deleteGlucoseTask = async (id: number) => {
+    try {
+        const res: any = await request.delete(`/health/glucose-tasks/${id}`)
+        if (res.code === 200) {
+            ElMessage.success('删除成功')
+            fetchGlucoseTasks()
+        }
+    } catch (e) {
+        console.error(e)
+    }
+}
+
+const formatTaskDate = (value: string) => {
+    if (!value) return '--'
+    return dayjs(value).format('YYYY-MM-DD HH:mm')
+}
+
+const fetchGlucoseAnalysis = async () => {
+    if (!userStore.user?.id) return
+    try {
+        const params: any = { userId: userStore.user.id }
+        if (glucoseRange.value) {
+            params.start = `${glucoseRange.value[0]} 00:00:00`
+            params.end = `${glucoseRange.value[1]} 23:59:59`
+        }
+        const res: any = await request.get('/health/glucose-records/analysis', { params })
+        if (res.code === 200 && res.data) {
+            glucoseAnalysis.riskLevel = res.data.riskLevel || 'LOW'
+            glucoseAnalysis.alerts = Array.isArray(res.data.alerts) ? res.data.alerts : []
+            glucoseAnalysis.mealImpacts = Array.isArray(res.data.mealImpacts) ? res.data.mealImpacts : []
+        }
+    } catch (e) {
+        console.error(e)
+    }
+}
+
+const submitGlucoseRecord = async () => {
+    if (!userStore.user?.id) return
+    const glucoseValue = Number(glucoseForm.glucoseValue)
+    if (!Number.isFinite(glucoseValue) || glucoseValue <= 0) {
+        ElMessage.warning('请输入有效血糖值')
+        return
+    }
+    glucoseSubmitting.value = true
+    try {
+        const payload = {
+            userId: userStore.user.id,
+            glucoseValue,
+            measureType: glucoseForm.measureType,
+            eventType: glucoseForm.eventType || null,
+            medicationNote: glucoseForm.medicationNote || null,
+            symptoms: glucoseForm.symptoms || null,
+            relatedMeal: glucoseForm.relatedMeal || null,
+            recordedAt: glucoseForm.recordedAt || dayjs().format('YYYY-MM-DD HH:mm:ss')
+        }
+        const res: any = await request.post('/health/glucose-records', payload)
+        if (res.code === 200) {
+            ElMessage.success('血糖记录已保存')
+            glucoseForm.glucoseValue = ''
+            glucoseForm.eventType = ''
+            glucoseForm.medicationNote = ''
+            glucoseForm.symptoms = ''
+            glucoseForm.relatedMeal = ''
+            glucoseForm.recordedAt = dayjs().format('YYYY-MM-DD HH:mm:ss')
+            fetchGlucoseRecords()
+        } else {
+            ElMessage.error(res.msg || '保存失败')
+        }
+    } catch (e) {
+        console.error(e)
+    } finally {
+        glucoseSubmitting.value = false
+    }
+}
+
+const deleteGlucoseRecord = async (id: number) => {
+    try {
+        await request.delete(`/health/glucose-records/${id}`)
+        ElMessage.success('删除成功')
+        fetchGlucoseRecords()
+    } catch (e) {
+        console.error(e)
+    }
+}
+
+const renderGlucoseChart = async () => {
+    if (activeTab.value !== 'glucose') return
+    await nextTick()
+    if (!glucoseChartRef.value) return
+    if (!glucoseChart) {
+        glucoseChart = echarts.init(glucoseChartRef.value)
+    }
+    const sorted = [...glucoseRecords.value].sort((a, b) => {
+        const ta = dayjs(a.recordedAt).valueOf()
+        const tb = dayjs(b.recordedAt).valueOf()
+        return ta - tb
+    })
+    const xAxis = sorted.map((item) => dayjs(item.recordedAt).format('MM-DD HH:mm'))
+    const values = sorted.map((item) => item.glucoseValue)
+    glucoseChart.setOption({
+        tooltip: { trigger: 'axis' },
+        grid: { left: 30, right: 20, top: 20, bottom: 50 },
+        xAxis: {
+            type: 'category',
+            data: xAxis,
+            axisLabel: { rotate: 30 }
+        },
+        yAxis: {
+            type: 'value',
+            name: 'mmol/L'
+        },
+        series: [
+            {
+                name: '血糖',
+                type: 'line',
+                smooth: true,
+                data: values,
+                itemStyle: { color: '#16a34a' },
+                lineStyle: { width: 2 }
+            }
+        ]
+    })
+}
+
 onMounted(() => {
     fetchProfile()
     loadLongTermData()
     fetchMetrics()
     fetchHistory()
+    applyGlucosePreset('week')
+})
+
+onUnmounted(() => {
+    if (glucoseChart) {
+        glucoseChart.dispose()
+        glucoseChart = null
+    }
 })
 
 const loadLongTermData = async () => {
@@ -1081,6 +1713,16 @@ watch(
     }
 )
 
+watch(
+    () => activeTab.value,
+    (tab) => {
+        if (tab === 'glucose') {
+            renderGlucoseChart()
+            fetchGlucoseTasks()
+        }
+    }
+)
+
 const fetchHistory = async () => {
     historyLoading.value = true
     try {
@@ -1148,6 +1790,10 @@ const fillHistoryForm = (data: any) => {
     historyForm.weight = data.weight ?? ''
     historyForm.bmi = data.bmi || ''
     historyForm.reportDate = data.reportDate || ''
+    historyForm.activityLevel = data.activityLevel || ''
+    historyForm.goal = data.goal || ''
+    historyForm.exerciseFrequency = data.exerciseFrequency ?? ''
+    historyForm.exerciseDuration = data.exerciseDuration ?? ''
     historyForm.bpSystolic = data.bpSystolic ?? ''
     historyForm.bpDiastolic = data.bpDiastolic ?? ''
     historyForm.fastingGlucose = data.fastingGlucose ?? ''
@@ -1174,6 +1820,10 @@ const fillCurrentForm = (data: any) => {
     form.weight = data.weight || 0
     form.bmi = data.bmi || ''
     form.reportDate = data.reportDate || ''
+    form.activityLevel = data.activityLevel || ''
+    form.goal = data.goal || ''
+    form.exerciseFrequency = data.exerciseFrequency ?? ''
+    form.exerciseDuration = data.exerciseDuration ?? ''
     form.bpSystolic = data.bpSystolic ?? ''
     form.bpDiastolic = data.bpDiastolic ?? ''
     form.fastingGlucose = data.fastingGlucose ?? ''
@@ -1345,6 +1995,71 @@ const formatHistoryDate = (val: string) => {
     }
     .filter-row {
         margin-bottom: 12px;
+    }
+}
+
+.glucose-container {
+    padding: 20px;
+    .list-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+        h3 { margin: 0; }
+        .list-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+    }
+}
+
+.glucose-form-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.glucose-summary {
+    margin: 10px 0 20px;
+    .summary-title {
+        color: #6b7280;
+        font-size: 13px;
+    }
+    .summary-value {
+        margin-top: 6px;
+        font-size: 22px;
+        font-weight: 600;
+        color: #1f2937;
+    }
+    .summary-value.warning {
+        color: #b45309;
+    }
+    .summary-value.danger {
+        color: #b91c1c;
+    }
+}
+
+.glucose-chart-card {
+    margin-bottom: 20px;
+}
+
+.glucose-chart {
+    width: 100%;
+    height: 320px;
+}
+
+.glucose-impact-card {
+    margin-top: 20px;
+}
+
+.analysis-alerts {
+    margin: 8px 0 0 18px;
+    padding: 0;
+    li {
+        margin: 4px 0;
     }
 }
 

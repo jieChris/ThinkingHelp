@@ -68,6 +68,10 @@ public class HealthProfileController {
         profile.setWeight(dto.getWeight());
         profile.setBmi(dto.getBmi());
         profile.setReportDate(dto.getReportDate());
+        profile.setActivityLevel(dto.getActivityLevel());
+        profile.setGoal(dto.getGoal());
+        profile.setExerciseFrequency(dto.getExerciseFrequency());
+        profile.setExerciseDuration(dto.getExerciseDuration());
         profile.setBpSystolic(dto.getBpSystolic());
         profile.setBpDiastolic(dto.getBpDiastolic());
         profile.setFastingGlucose(dto.getFastingGlucose());
@@ -169,6 +173,10 @@ public class HealthProfileController {
         dto.setWeight(profile.getWeight());
         dto.setBmi(profile.getBmi());
         dto.setReportDate(profile.getReportDate());
+        dto.setActivityLevel(profile.getActivityLevel());
+        dto.setGoal(profile.getGoal());
+        dto.setExerciseFrequency(profile.getExerciseFrequency());
+        dto.setExerciseDuration(profile.getExerciseDuration());
         dto.setBpSystolic(profile.getBpSystolic());
         dto.setBpDiastolic(profile.getBpDiastolic());
         dto.setFastingGlucose(profile.getFastingGlucose());
